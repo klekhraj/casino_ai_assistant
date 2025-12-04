@@ -39,25 +39,25 @@ st.markdown(
     /* Hero */
     .gsn-hero-title {
         text-align: center;
-        font-size: 2.2rem;
-        font-weight: 800;
-        letter-spacing: 0.18em;
+        font-size: 2.8rem;
+        font-weight: 900;
+        letter-spacing: 0.2em;
         text-transform: uppercase;
         background: linear-gradient(120deg, #e5f6ff 0%, #7dd3fc 30%, #60a5fa 60%, #a855f7 100%);
         -webkit-background-clip: text;
         color: transparent;
         text-shadow:
-            0 0 3px rgba(255,255,255,0.9),
-            0 3px 10px rgba(15,23,42,0.95);
-        margin-bottom: 0.35rem;
+            0 0 2px rgba(255,255,255,0.8),
+            0 2px 6px rgba(15,23,42,0.8);
+        margin-bottom: 0.45rem;
     }
 
     .gsn-hero-subtitle {
         text-align: center;
-        font-size: 0.95rem;
+        font-size: 1.05rem;
         color: #cbd5f5;
-        opacity: 0.95;
-        margin-bottom: 1.9rem;
+        opacity: 0.98;
+        margin-bottom: 2.1rem;
     }
 
     /* Glass cards */
@@ -78,22 +78,25 @@ st.markdown(
         letter-spacing: 0.06em;
     }
 
-    /* Primary CTA */
+    /* Smaller heading style for right-side panels */
+    .right-panel-heading {
+        font-size: 1.05rem;
+        font-weight: 700;
+        margin-bottom: 0.35rem;
+    }
+
+    /* Primary CTA: rectangular with soft rounded edges to match other buttons */
     button[kind="primary"] {
-        background: linear-gradient(90deg, #38bdf8, #4ade80) !important;
-        color: #0b1020 !important;
-        font-weight: 700 !important;
-        border-radius: 999px !important;
-        border: 0 !important;
-        text-transform: uppercase;
-        letter-spacing: 0.09em;
-        box-shadow:
-            0 16px 34px rgba(15, 23, 42, 0.9),
-            0 0 18px rgba(56, 189, 248, 0.8) !important;
+        font-weight: 600 !important;
+        border-radius: 10px !important;
+        border: 1px solid rgba(148, 163, 184, 0.7) !important;
+        text-transform: none;
+        letter-spacing: 0.03em;
+        box-shadow: none !important;
     }
     button[kind="primary"]:hover {
-        filter: brightness(1.07);
-        transform: translateY(-1px);
+        filter: brightness(1.05);
+        transform: translateY(-0.5px);
     }
 
     /* Inputs */
@@ -117,6 +120,21 @@ st.markdown(
 
     hr {
         border-color: rgba(55, 65, 81, 0.7);
+    }
+
+    /* Make download, copy, and primary buttons share the same style */
+    .stDownloadButton button, #copy-table-btn, button[kind="primary"] {
+        border-radius: 10px !important;
+        background: linear-gradient(90deg, #38bdf8, #4ade80) !important;
+        color: #0b1020 !important;
+        border: 1px solid rgba(148, 163, 184, 0.7) !important;
+        font-size: 0.9rem !important;
+        font-weight: 600 !important;
+        padding: 0.45rem 0.9rem !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        gap: 0.35rem !important;
     }
     </style>
     """,
@@ -178,20 +196,30 @@ RULES:
 - Always filter by event_day_pst to limit scanned data when a time range is implied
 - Add LIMIT 100 only at the final display step, not during intermediate aggregations
 - Use clear, standard SQL that is compatible with SQLite (no BigQuery-specific functions like DATE_SUB or INTERVAL)
-- Always treat NULL payer_type as the string 'Non-Payer' by using COALESCE(payer_type, 'Non-Payer') in SELECT and GROUP BY when segmenting by payer type.
+- Always treat NULL payer_type as the string 'Non-Payer' by using COALESCE(payer_type, 'Non-Payer') in SELECT and GROUP BY when segmenting by payer type for **active payer** status.
+- Interpreting payer status:
+  * Active payer vs active non-payer (last 12 weeks) is determined by payer_type (NULL => not an active payer).
+  * **Lifetime non-payers** are users with bookings_lifetime = 0 (they have never paid).
+  * **Lifetime payers** are users with bookings_lifetime > 0 (they have paid at least once).
+  * Whenever the user asks about "lifetime" payer or non-payer metrics, you MUST use bookings_lifetime (0 vs > 0) instead of payer_type filters.
 - Provide ONLY the SQL query, no explanations or commentary
 
 TABLE SCHEMA (user_days):
-- event_day_pst: Date
-- user_id: Unique user id
-- bookings: User's revenue
-- transactions: Number of transactions
-- payer_type: Type of payer (payer_type, DolphinLapse, WhaleLapse, BassLapse, Whale, Bass, MinnowLapse, Dolphin, Blue, Minnow, OrcaLapse, BlueLapse, NULL for Non-Payer)
-- slot_spins: Number of spins in a day
-- slot_coins_used: Tokens/coins used in a day
-- slot_coins_gained: Tokens/coins gained in a day
-- platform: ios, android, amazon (mobile), others (web/webstore)
-- engagement_7d: Days active in last 7 days (7 = regular users)
+- event_day_pst: Snapshot date.
+- user_id: Unique user id.
+- bookings: User's revenue for that day.
+- transactions: Number of transactions.
+- bookings_lifetime: Lifetime revenue (LTV) or lifetime value of a user up to event_day_pst.
+- balance_coins_begin: Tokens/coins balance when the user logged in.
+- balance_coins_end: Tokens/coins balance at the end of the day.
+- install_first_date_pst: Date of install. Can be used to calculate tenure. Users older than 365 days are called older players.
+- country: Country of the user (demographic information).
+- payer_type: Type of payer (payer_type, DolphinLapse, WhaleLapse, BassLapse, Whale, Bass, MinnowLapse, Dolphin, Blue, Minnow, OrcaLapse, BlueLapse, NULL for Non-Payer).
+- slot_spins: Number of spins in a day.
+- slot_coins_used: Tokens/coins used in a day.
+- slot_coins_gained: Tokens/coins gained in a day.
+- platform: ios, android, amazon are mobile platforms; others are web/webstore.
+- engagement_7d: Count of days the user was active in the last 7 days including today (7 = regular users).
 
 PAYER GROUPS:
 - High Payer: Blue, BlueLapse, Orca, OrcaLapse, Whale, WhaleLapse
@@ -393,8 +421,8 @@ def main():
 
     st.markdown("<hr />", unsafe_allow_html=True)
 
-    # Main content area (no sidebar)
-    col1, col2 = st.columns([2, 1])
+    # Main content area (no sidebar) with a spacer to push options further right
+    col1, col_spacer, col2 = st.columns([2.2, 0.3, 1])
     
     with col1:
         st.header("💬 Let me know what you’d like to ask below")
@@ -432,14 +460,16 @@ def main():
         )
     
     with col2:
-        st.header("🔧 Options")
+        # Options panel heading using custom smaller heading style
+        st.markdown('<div class="right-panel-heading">🔧 Options</div>', unsafe_allow_html=True)
 
         show_prompt = st.checkbox("📋 Show generated prompt", value=False)
         copy_to_clipboard = st.checkbox("📋 Enable copy to clipboard", value=True)
 
         st.markdown("---")
 
-        st.subheader("🎯 Custom Prompt (Optional)")
+        # Match heading size for custom prompt section
+        st.markdown('<div class="right-panel-heading">🎯 Custom Prompt (Optional)</div>', unsafe_allow_html=True)
         use_custom_prompt = st.checkbox("Use custom prompt")
 
         custom_prompt = ""
@@ -573,20 +603,39 @@ def main():
             if summary_rows:
                 st.dataframe(pd.DataFrame(summary_rows))
 
-        csv_data = result_df.to_csv(index=False).encode("utf-8")
-        st.download_button(
-            label="📥 Download Query Results (CSV)",
-            data=csv_data,
-            file_name=f"results_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
-            mime="text/csv",
-        )
+        csv_str = result_df.to_csv(index=False)
+        csv_data = csv_str.encode("utf-8")
+
+        # Place download and copy buttons side by side
+        btn_col1, btn_col2 = st.columns(2)
+        with btn_col1:
+            st.download_button(
+                label="📥 Download Query Results (CSV)",
+                data=csv_data,
+                file_name=f"results_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
+                mime="text/csv",
+                use_container_width=True,
+            )
+
+        # Visual-only copy button (no clipboard functionality, per limitation)
+        copy_html = """
+        <button id=\"copy-table-btn\" style=\"width: 100%; cursor: default; text-align: center;\">📥 Copy data to clipboard</button>
+        """
+
+        with btn_col2:
+            st.markdown(copy_html, unsafe_allow_html=True)
 
         st.markdown('</div>', unsafe_allow_html=True)
 
         # Insights and visualizations for the last successful result
         st.subheader("🧠 Insights & Visualizations")
 
-        if st.button("Generate insights and charts for latest result", key="generate_insights_global"):
+        if st.button(
+            "✨ Generate Insights & Visualizations",
+            key="generate_insights_global",
+            type="primary",
+            use_container_width=True,
+        ):
             user_query = st.session_state.last_user_query
 
             with st.spinner("🎰 Spinning up reels, crunching coins, and drawing charts..."):
