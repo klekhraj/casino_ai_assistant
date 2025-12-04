@@ -2,51 +2,186 @@ import streamlit as st
 from openai import OpenAI
 from datetime import datetime
 import os
+import json
+import ast
+import pandas as pd
+import plotly.express as px
 from dotenv import load_dotenv
+from database import DatabaseManager
 
 # Load environment variables
 load_dotenv()
 
 # Page configuration
 st.set_page_config(
-    page_title="GSN Casino SQL Generator",
+    page_title="Casino Analytics AI Assistant",
     page_icon="🎰",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
+st.markdown(
+    """
+    <style>
+    /* Global layout */
+    .stApp {
+        background: radial-gradient(circle at top left, #162447 0, #05081a 45%, #02030c 100%);
+        color: #f8fafc;
+        font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+
+    .block-container {
+        padding-top: 1.8rem;
+        padding-bottom: 3.2rem;
+        max-width: 1120px;
+    }
+
+    /* Hero */
+    .gsn-hero-title {
+        text-align: center;
+        font-size: 2.2rem;
+        font-weight: 800;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        background: linear-gradient(120deg, #e5f6ff 0%, #7dd3fc 30%, #60a5fa 60%, #a855f7 100%);
+        -webkit-background-clip: text;
+        color: transparent;
+        text-shadow:
+            0 0 3px rgba(255,255,255,0.9),
+            0 3px 10px rgba(15,23,42,0.95);
+        margin-bottom: 0.35rem;
+    }
+
+    .gsn-hero-subtitle {
+        text-align: center;
+        font-size: 0.95rem;
+        color: #cbd5f5;
+        opacity: 0.95;
+        margin-bottom: 1.9rem;
+    }
+
+    /* Glass cards */
+    .gsn-card {
+        background: linear-gradient(135deg, rgba(30, 64, 175, 0.18), rgba(76, 29, 149, 0.28));
+        border-radius: 18px;
+        padding: 1.3rem 1.55rem;
+        border: 1px solid rgba(148, 163, 184, 0.55);
+        box-shadow:
+            0 18px 45px rgba(10, 15, 35, 0.9),
+            0 0 32px rgba(59, 130, 246, 0.45);
+        backdrop-filter: blur(18px);
+    }
+
+    .gsn-card h2, .gsn-card h3 {
+        color: #e5e7f9 !important;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+    }
+
+    /* Primary CTA */
+    button[kind="primary"] {
+        background: linear-gradient(90deg, #38bdf8, #4ade80) !important;
+        color: #0b1020 !important;
+        font-weight: 700 !important;
+        border-radius: 999px !important;
+        border: 0 !important;
+        text-transform: uppercase;
+        letter-spacing: 0.09em;
+        box-shadow:
+            0 16px 34px rgba(15, 23, 42, 0.9),
+            0 0 18px rgba(56, 189, 248, 0.8) !important;
+    }
+    button[kind="primary"]:hover {
+        filter: brightness(1.07);
+        transform: translateY(-1px);
+    }
+
+    /* Inputs */
+    textarea, .stSelectbox, .stTextInput, .stNumberInput, .stMultiSelect {
+        background-color: rgba(15, 23, 42, 0.96) !important;
+        border-radius: 10px !important;
+        border: 1px solid rgba(148, 163, 184, 0.7) !important;
+        color: #e5e7eb !important;
+    }
+    textarea:focus, .stTextInput:focus {
+        border-color: #38bdf8 !important;
+        box-shadow: 0 0 0 1px rgba(56, 189, 248, 0.7) !important;
+    }
+
+    /* Tables */
+    .stDataFrame, .stTable {
+        background-color: rgba(15, 23, 42, 0.98) !important;
+        border-radius: 12px !important;
+        border: 1px solid rgba(75, 85, 99, 0.7) !important;
+    }
+
+    hr {
+        border-color: rgba(55, 65, 81, 0.7);
+    }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
 # Initialize session state
 if 'query_history' not in st.session_state:
     st.session_state.query_history = []
+if 'db_manager' not in st.session_state:
+    st.session_state.db_manager = DatabaseManager()
+if 'last_result_df' not in st.session_state:
+    st.session_state.last_result_df = None
+if 'last_user_query' not in st.session_state:
+    st.session_state.last_user_query = ""
+if 'user_query_input' not in st.session_state:
+    st.session_state.user_query_input = ""
 
-def generate_sql_query(user_query: str, custom_prompt: str = None, api_key: str = None) -> str:
-    """Generate SQL query from natural language using OpenAI"""
+# Optional: column definitions for known tables (used in debug view)
+COLUMN_DEFINITIONS = {
+    "event_day_pst": "Event date in Pacific time.",
+    "user_id": "Unique user identifier.",
+    "bookings": "User revenue (bookings) for the day.",
+    "transactions": "Number of transactions for the day.",
+    "payer_type": "Payer segmentation label (e.g., Blue, Dolphin, Minnow).",
+    "Payer_type": "Payer segmentation label (e.g., Blue, Dolphin, Minnow).",
+    "slot_spins": "Number of slot spins in the day.",
+    "slot_coins_used": "Total coins/tokens wagered in slot spins.",
+    "slot_coins_gained": "Total coins/tokens won from slot spins.",
+    "platform": "User platform (ios, android, amazon, others).",
+    "engagement_7d": "Days active in the last 7 days (7 = regular user).",
+    "total_revenue": "Aggregated revenue metric (e.g., SUM(bookings) over the selected period).",
+}
+
+def generate_sql_query(user_query: str, custom_prompt: str = None) -> str:
+    """Generate SQL query from natural language using OpenAI.
+
+    The OpenAI API key is read from the OPENAI_API_KEY environment variable only
+    and is never exposed in the UI.
+    """
     try:
-        # Initialize OpenAI client
-        if api_key:
-            client = OpenAI(api_key=api_key)
-        else:
-            client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-        
-        if not (api_key or os.getenv("OPENAI_API_KEY")):
-            st.error("OpenAI API key not provided!")
+        # Initialize OpenAI client from environment variable only
+        api_key = os.getenv("OPENAI_API_KEY")
+        if not api_key:
+            st.error("OpenAI API key not configured. Please set OPENAI_API_KEY in your environment.")
             return None
+
+        client = OpenAI(api_key=api_key)
         
         # Use custom prompt or GSN Casino specific prompt
         if custom_prompt:
             prompt = custom_prompt.replace("{user_query}", user_query)
         else:
             prompt = f"""
-You are a GSN Casino BigQuery SQL expert. Generate optimized SQL queries for GSN Casino data stored in Google BigQuery.
+You are a GSN Casino SQL expert. Generate optimized SQL queries for GSN Casino data stored in a local SQLite database.
 
 RULES:
-- Always reference: dwh-prod-gsn-casino.gsn_agg.user_days
-- Always filter by event_day_pst to limit scanned data
-- Add LIMIT 100 only at final display step, not during intermediate aggregations
-- Use clear BigQuery syntax
+- Always reference the table: user_days
+- Always filter by event_day_pst to limit scanned data when a time range is implied
+- Add LIMIT 100 only at the final display step, not during intermediate aggregations
+- Use clear, standard SQL that is compatible with SQLite (no BigQuery-specific functions like DATE_SUB or INTERVAL)
+- Always treat NULL payer_type as the string 'Non-Payer' by using COALESCE(payer_type, 'Non-Payer') in SELECT and GROUP BY when segmenting by payer type.
 - Provide ONLY the SQL query, no explanations or commentary
 
-TABLE SCHEMA (dwh-prod-gsn-casino.gsn_agg.user_days):
+TABLE SCHEMA (user_days):
 - event_day_pst: Date
 - user_id: Unique user id
 - bookings: User's revenue
@@ -61,7 +196,7 @@ TABLE SCHEMA (dwh-prod-gsn-casino.gsn_agg.user_days):
 PAYER GROUPS:
 - High Payer: Blue, BlueLapse, Orca, OrcaLapse, Whale, WhaleLapse
 - Low Payer: Bass, BassLapse, Dolphin, DolphinLapse, Minnow, MinnowLapse
-- Non-Payer: NULL
+- Non-Payer: NULL (always surfaced as the label 'Non-Payer' using COALESCE)
 
 User Request: {user_query}
 
@@ -89,63 +224,193 @@ SQL Query:
         st.error(f"SQL generation failed: {str(e)}")
         return None
 
+def generate_result_insights(df, user_query: str):
+    """Generate insights and chart specifications for the query results.
+
+    Returns a Python dict with at least:
+    {
+        "insights": ["..."],
+        "charts": [
+            {"type": "bar", "x": "Payer_type", "y": "total_revenue", "title": "..."},
+            {"type": "pie", "names": "Payer_type", "values": "total_revenue", "title": "..."},
+            ...
+        ]
+    }
+
+    If the model does not return valid JSON, a fallback dict with a single
+    free-form insight string is returned.
+    """
+    try:
+        api_key = os.getenv("OPENAI_API_KEY")
+        if not api_key:
+            return "OpenAI API key not configured. Cannot generate insights."
+
+        client = OpenAI(api_key=api_key)
+
+        sample_csv = df.head(50).to_csv(index=False)
+        prompt = f"""
+You are a highly experienced senior data analyst.
+
+IMPORTANT RUNTIME CONTEXT
+- You are used strictly via an API that sends and receives **text only**.
+- You CANNOT return actual charts, images, or other media.
+- Instead, you must describe analytics as:
+  1) Quantitative insight sentences, and
+  2) A machine-readable chart specification that another tool will
+     use to render visualizations.
+
+INPUT YOU RECEIVE
+- The user's natural-language question about a dataset
+- A small CSV sample of the query results
+
+WHAT YOU MUST RETURN
+Return a single **JSON object only** (no extra text) with these
+top-level keys:
+
+{{
+  "insights": [
+    "string insight 1",
+    "string insight 2"
+  ],
+  "charts": [
+    {{
+      "type": "bar" | "pie" | "line" | "histogram",
+      "x": "column_name (for bar/line) or null",
+      "y": "metric_column (for bar/line) or null",
+      "names": "column_name (for pie) or null",
+      "values": "metric_column (for pie) or null",
+      "title": "Human readable chart title"
+    }},
+    ...
+  ]
+}}
+
+Rules for INSIGHTS (text part):
+- Always be quantitative (shares, rankings, concentration, peaks/lows, etc.).
+- 4–6 short bullet-style sentences.
+- Each insight should mention numbers or percentages when possible.
+- Keep each insight under 160 characters.
+- Do NOT restate the table in a generic way (e.g., "Blue is the highest").
+
+Rules for CHART SPECS (for downstream visualization tools):
+- You are NOT drawing the charts yourself; you are specifying how
+  another system should draw them.
+- For categorical totals (e.g., payer-type revenue), output **two charts**:
+  1) Bar chart with type="bar", x = category column, y = metric column.
+  2) Pie chart with type="pie", names = category column, values = metric column.
+- For time-series data, use type="line" with x = date column, y = metric column.
+- For distributions of a single numeric metric, use type="histogram" with x = metric column.
+- Use column names exactly as they appear in the CSV sample.
+- If a field (x, y, names, values) is not relevant to a chart type,
+  set it to null or omit it.
+
+OUTPUT FORMAT REQUIREMENTS
+- Return ONLY the JSON object described above.
+- Do NOT include markdown, explanations, natural-language text, or
+  any content outside of the JSON.
+
+User question:
+{user_query}
+
+Sample rows from the query results in CSV format:
+{sample_csv}
+"""
+
+        response = client.chat.completions.create(
+            model="gpt-3.5-turbo",
+            messages=[
+                {"role": "system", "content": "You are a senior data analyst that returns ONLY valid JSON following the requested schema. The entire response must fit comfortably within 600 tokens."},
+                {"role": "user", "content": prompt},
+            ],
+            max_tokens=600,
+            temperature=0.3,
+        )
+        raw = response.choices[0].message.content.strip()
+
+        # Try to extract a clean JSON object even if the model wrapped it
+        # in markdown fences or extra explanation text.
+        cleaned = raw
+
+        # If there are markdown code fences, take the content inside the first pair
+        if "```" in cleaned:
+            parts = cleaned.split("```")
+            # Heuristic: pick the largest chunk that looks like JSON
+            json_like_chunks = [p for p in parts if "{" in p and "}" in p]
+            if json_like_chunks:
+                cleaned = max(json_like_chunks, key=len).strip()
+
+        # Trim to the outermost JSON object if there is extra text
+        start = cleaned.find("{")
+        end = cleaned.rfind("}")
+        if start != -1 and end != -1 and end > start:
+            cleaned = cleaned[start : end + 1]
+
+        # Try to parse the cleaned response as JSON, with a Python-literal
+        # fallback if the model used single quotes or minor JSON mistakes.
+        try:
+            parsed = json.loads(cleaned)
+        except Exception:
+            try:
+                parsed = ast.literal_eval(cleaned)
+            except Exception:
+                parsed = None
+
+        if isinstance(parsed, dict):
+            if "insights" not in parsed:
+                parsed["insights"] = []
+            if "charts" not in parsed:
+                parsed["charts"] = []
+            return parsed
+        else:
+            # Fallback: treat the whole text as a single insight string
+            return {"insights": [raw], "charts": []}
+
+    except Exception as e:
+        return f"Insight generation failed: {str(e)}"
+
+def _set_query_from_example():
+    """Update the main query input when a preset example is chosen."""
+    selected = st.session_state.get("example_query", "")
+    if selected:
+        st.session_state.user_query_input = selected
+
+
 def main():
     # Header
-    st.title("🎰 GSN Casino SQL Generator")
-    st.markdown("Convert natural language to optimized BigQuery SQL for GSN Casino analytics!")
-    
-    # Sidebar for configuration
-    with st.sidebar:
-        st.header("⚙️ Configuration")
-        
-        # API Key input
-        api_key = st.text_input(
-            "OpenAI API Key:",
-            type="password",
-            value=os.getenv("OPENAI_API_KEY", ""),
-            help="Enter your OpenAI API key"
+    st.markdown("<div style='margin-top: 1.5rem'></div>", unsafe_allow_html=True)
+    header_logo_col, header_text_col = st.columns([1, 3])
+
+    with header_logo_col:
+        st.image("assets/gsn_logo.png", width=180)
+
+    with header_text_col:
+        st.markdown("<div style='margin-top: 1.2rem'></div>", unsafe_allow_html=True)
+        st.markdown('<div class="gsn-hero-title">CASINO ANALYTICS AI ASSISTANT</div>', unsafe_allow_html=True)
+        st.markdown(
+            '<div class="gsn-hero-subtitle">Leveraging SQL and AI for advanced casino analytics insights.</div>',
+            unsafe_allow_html=True,
         )
-        
-        st.markdown("---")
-        
-        # Custom prompt section
-        st.subheader("🎯 Custom Prompt (Optional)")
-        use_custom_prompt = st.checkbox("Use custom prompt")
-        
-        custom_prompt = ""
-        if use_custom_prompt:
-            custom_prompt = st.text_area(
-                "Custom Prompt:",
-                height=200,
-                placeholder="Enter your custom prompt here. Use {user_query} as placeholder for the user's natural language query.",
-                help="Create a custom prompt for SQL generation. Use {user_query} where you want the user's question to be inserted."
-            )
-        
-        st.markdown("---")
-        
-        # Query history
-        if st.session_state.query_history:
-            st.subheader("📝 Recent Queries")
-            for i, item in enumerate(reversed(st.session_state.query_history[-5:])):
-                with st.expander(f"Query {len(st.session_state.query_history) - i}"):
-                    st.write(f"**Input:** {item['input']}")
-                    st.code(item['sql'], language="sql")
-    
-    # Main content area
+
+    st.markdown("<hr />", unsafe_allow_html=True)
+
+    # Main content area (no sidebar)
     col1, col2 = st.columns([2, 1])
     
     with col1:
-        st.header("💬 Natural Language Input")
-        
-        # Query input
+        st.header("💬 Let me know what you’d like to ask below")
+
+        # Main free-form question input (first, more prominent)
+        st.markdown("**Enter your GSN Casino analytics question**")
         user_query = st.text_area(
-            "Enter your GSN Casino analytics question:",
+            label="",
             placeholder="e.g., Get DAU for last 7 days or Show revenue by payer type",
-            height=120
+            height=120,
+            key="user_query_input",
         )
-        
-        # Example queries
+
+        # Example queries shown below as "frequently asked questions"
         st.subheader("💡 GSN Casino Example Queries")
+        st.markdown("**Or select from frequently asked questions**")
         example_queries = [
             "Get DAU (daily active users) in last 7 days",
             "Get average DAU in last 7 days",
@@ -156,27 +421,40 @@ def main():
             "Get regular users (engagement_7d = 7) count by platform",
             "Calculate average coins used per spin by payer group",
             "Show high payer vs low payer revenue comparison",
-            "Get mobile platform DAU vs web platform DAU"
+            "Get mobile platform DAU vs web platform DAU",
         ]
-        
-        selected_example = st.selectbox("Or select an example:", [""] + example_queries)
-        if selected_example:
-            user_query = selected_example
+
+        st.selectbox(
+            label="",
+            options=[""] + example_queries,
+            key="example_query",
+            on_change=_set_query_from_example,
+        )
     
     with col2:
         st.header("🔧 Options")
-        
+
         show_prompt = st.checkbox("📋 Show generated prompt", value=False)
         copy_to_clipboard = st.checkbox("📋 Enable copy to clipboard", value=True)
+
+        st.markdown("---")
+
+        st.subheader("🎯 Custom Prompt (Optional)")
+        use_custom_prompt = st.checkbox("Use custom prompt")
+
+        custom_prompt = ""
+        if use_custom_prompt:
+            custom_prompt = st.text_area(
+                "Custom Prompt:",
+                height=200,
+                placeholder="Enter your custom prompt here. Use {user_query} as placeholder for the user's natural language query.",
+                help="Create a custom prompt for SQL generation. Use {user_query} where you want the user's question to be inserted."
+            )
     
     # Generate query button
-    if st.button("🚀 Generate SQL Query", type="primary", use_container_width=True):
+    if st.button("Run query & show results", type="primary", use_container_width=True):
         if not user_query.strip():
             st.warning("Please enter a query!")
-            return
-        
-        if not api_key:
-            st.error("Please provide your OpenAI API key in the sidebar!")
             return
         
         with st.spinner("Generating SQL query..."):
@@ -192,15 +470,43 @@ def main():
             
             # Generate SQL
             sql_query = generate_sql_query(
-                user_query, 
+                user_query,
                 custom_prompt if use_custom_prompt else None,
-                api_key
             )
             
             if sql_query:
+                # Basic safety check to prevent destructive operations
+                upper_sql = sql_query.upper()
+                dangerous_keywords = ["DROP", "DELETE", "TRUNCATE", "ALTER", "CREATE", "INSERT", "UPDATE"]
+                if any(keyword in upper_sql for keyword in dangerous_keywords):
+                    st.error("Generated query contains potentially destructive operations and will not be executed.")
+                    return
+
                 # Display generated SQL
                 st.subheader("✨ Generated SQL Query")
                 st.code(sql_query, language="sql")
+
+                # Execute against local database and store results in session_state
+                result_df = st.session_state.db_manager.execute_query(sql_query)
+                if result_df is not None and not result_df.empty:
+                    # Remove any existing index so it is never treated as a data column
+                    result_df = result_df.reset_index(drop=True)
+
+                    # Coerce numeric-looking object columns (e.g., totals returned as strings)
+                    for col in result_df.select_dtypes(include=["object"]).columns:
+                        try:
+                            series_str = result_df[col].astype(str).str.replace(",", "").str.strip()
+                            converted = pd.to_numeric(series_str, errors="coerce")
+                            if converted.notna().any():
+                                result_df[col] = converted
+                        except Exception:
+                            pass
+
+                    # Persist the cleaned result and query for later display/insights
+                    st.session_state.last_result_df = result_df
+                    st.session_state.last_user_query = user_query
+                else:
+                    st.info("Query executed but returned no rows.")
                 
                 # Copy to clipboard option
                 if copy_to_clipboard:
@@ -225,8 +531,185 @@ def main():
                     mime="text/plain"
                 )
                 
-                st.success("✅ SQL query generated successfully!")
-    
+                st.success("✅ SQL query generated and executed successfully!")
+
+    # Separate section: always show latest query results (if any)
+    if st.session_state.last_result_df is not None and not st.session_state.last_result_df.empty:
+        result_df = st.session_state.last_result_df
+
+        st.markdown("---")
+        st.subheader("📊 Latest Query Results")
+        st.markdown('<div class="gsn-card">', unsafe_allow_html=True)
+        # Ensure index is clean and hidden for display
+        result_df = result_df.reset_index(drop=True)
+        try:
+            st.dataframe(result_df, use_container_width=True, hide_index=True)
+        except TypeError:
+            # Fallback for older Streamlit versions without hide_index
+            st.dataframe(result_df, use_container_width=True)
+
+        # Show detected dtypes and per-column summary
+        with st.expander("📂 Result details & column profile", expanded=False):
+            st.write("Raw dtypes:")
+            st.write(result_df.dtypes.astype(str))
+
+            st.write("\nColumn summary:")
+            summary_rows = []
+            for col in result_df.columns:
+                series = result_df[col]
+                dtype = str(series.dtype)
+                distinct = int(series.nunique(dropna=True))
+                samples = series.dropna().unique()[:5]
+                samples_display = ", ".join(map(str, samples))
+                definition = COLUMN_DEFINITIONS.get(col, "")
+                summary_rows.append({
+                    "column": col,
+                    "dtype": dtype,
+                    "distinct_values": distinct,
+                    "sample_values": samples_display,
+                    "definition": definition,
+                })
+
+            if summary_rows:
+                st.dataframe(pd.DataFrame(summary_rows))
+
+        csv_data = result_df.to_csv(index=False).encode("utf-8")
+        st.download_button(
+            label="📥 Download Query Results (CSV)",
+            data=csv_data,
+            file_name=f"results_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
+            mime="text/csv",
+        )
+
+        st.markdown('</div>', unsafe_allow_html=True)
+
+        # Insights and visualizations for the last successful result
+        st.subheader("🧠 Insights & Visualizations")
+
+        if st.button("Generate insights and charts for latest result", key="generate_insights_global"):
+            user_query = st.session_state.last_user_query
+
+            with st.spinner("🎰 Spinning up reels, crunching coins, and drawing charts..."):
+                # Time-series visualization (event_day_pst + numeric metrics)
+                numeric_cols = result_df.select_dtypes(include=["number"]).columns.tolist()
+                if "event_day_pst" in result_df.columns and numeric_cols:
+                    ts_df = result_df.copy()
+                    try:
+                        ts_df["event_day_pst"] = pd.to_datetime(ts_df["event_day_pst"], errors="coerce")
+                        ts_df = ts_df.dropna(subset=["event_day_pst"])
+                        ts_df = ts_df.sort_values("event_day_pst")
+
+                        st.subheader("📈 Trend over time")
+                        st.line_chart(ts_df.set_index("event_day_pst")[numeric_cols[0]])
+                    except Exception:
+                        pass
+
+                insight_spec = generate_result_insights(result_df, user_query)
+                if isinstance(insight_spec, dict):
+                    insights_list = insight_spec.get("insights") or []
+                    charts_spec = insight_spec.get("charts") or []
+
+                    if insights_list:
+                        st.subheader("🔍 Insights")
+                        bullets = "\n".join(f"- {text}" for text in insights_list)
+                        st.markdown(bullets)
+
+                    # Render any charts requested by the agent spec using a cleaned DataFrame
+                    plot_df = result_df.copy()
+
+                    # Drop obvious index-like columns by name
+                    drop_cols = [
+                        c for c in plot_df.columns
+                        if c.lower() == "index" or c.startswith("Unnamed")
+                    ]
+
+                    # Also drop any column that is a simple positional index (0..n-1)
+                    for c in list(plot_df.columns):
+                        series = plot_df[c]
+                        try:
+                            # Non-null part equals range(len) -> looks like index
+                            non_null = series.dropna()
+                            if (
+                                pd.api.types.is_integer_dtype(non_null) and
+                                non_null.reset_index(drop=True).equals(pd.Series(range(len(non_null))))
+                            ):
+                                drop_cols.append(c)
+                        except Exception:
+                            continue
+
+                    if drop_cols:
+                        plot_df = plot_df.drop(columns=list(set(drop_cols)))
+
+                    # Best-effort: coerce any remaining numeric-looking object columns
+                    for col in plot_df.select_dtypes(include=["object"]).columns:
+                        try:
+                            series_str = plot_df[col].astype(str).str.replace(",", "").str.strip()
+                            converted = pd.to_numeric(series_str, errors="coerce")
+                            if converted.notna().any():
+                                plot_df[col] = converted
+                        except Exception:
+                            continue
+
+                    for chart in charts_spec:
+                        ctype = str(chart.get("type", "")).lower()
+                        title = chart.get("title")
+                        try:
+                            if ctype == "bar":
+                                x_col = chart.get("x")
+                                y_col = chart.get("y")
+                                if not x_col or not y_col:
+                                    continue
+                                if x_col in plot_df.columns and y_col in plot_df.columns:
+                                    fig = px.bar(
+                                        plot_df,
+                                        x=x_col,
+                                        y=y_col,
+                                        title=title,
+                                    )
+                                    st.plotly_chart(fig, use_container_width=True)
+
+                            elif ctype == "pie":
+                                names_col = chart.get("names")
+                                values_col = chart.get("values")
+                                if not names_col or not values_col:
+                                    continue
+                                if names_col in plot_df.columns and values_col in plot_df.columns:
+                                    fig = px.pie(
+                                        plot_df,
+                                        names=names_col,
+                                        values=values_col,
+                                        title=title,
+                                    )
+                                    st.plotly_chart(fig, use_container_width=True)
+
+                            elif ctype == "line":
+                                x_col = chart.get("x")
+                                y_col = chart.get("y")
+                                if not x_col or not y_col:
+                                    continue
+                                if x_col in plot_df.columns and y_col in plot_df.columns:
+                                    fig = px.line(
+                                        plot_df,
+                                        x=x_col,
+                                        y=y_col,
+                                        title=title,
+                                    )
+                                    st.plotly_chart(fig, use_container_width=True)
+
+                            elif ctype == "histogram":
+                                x_col = chart.get("x")
+                                if not x_col:
+                                    continue
+                                if x_col in plot_df.columns:
+                                    fig = px.histogram(
+                                        plot_df,
+                                        x=x_col,
+                                        title=title,
+                                    )
+                                    st.plotly_chart(fig, use_container_width=True)
+                        except Exception:
+                            continue
+
     # Display query history
     if st.session_state.query_history:
         st.markdown("---")
