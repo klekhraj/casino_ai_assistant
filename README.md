@@ -1,179 +1,200 @@
-# 📊 Analytics AI Tool
+# 🎰 Casino Analytics AI Assistant
 
-A powerful Streamlit application that converts natural language queries into SQL and provides instant data visualization and analysis.
+An AI-powered Streamlit app that turns natural-language questions about GSN Casino data
+into SQL, executes them against a local SQLite database, and generates insights
+and visualizations.
 
-## 🚀 Features
+---
 
-- **Natural Language to SQL**: Convert plain English questions into SQL queries using OpenAI
-- **Multiple Database Support**: Works with SQLite, MySQL, and PostgreSQL
-- **Auto Visualizations**: Automatically generates charts and graphs from query results
-- **Query History**: Keep track of all your queries and results
-- **Schema Explorer**: Browse database tables and their structures
-- **Sample Data**: Built-in sample data for testing and demonstration
-- **Export Results**: Download query results as CSV files
-- **SQL Explanation**: Get plain English explanations of generated SQL queries
+## 🚀 Key Features
 
-## 🛠️ Installation
+- **Natural language → SQL** using OpenAI
+- **SQLite-backed demo dataset** via `analytics.db`
+- **Latest results panel** with data preview & column profile
+- **AI-generated insights & charts** for the most recent query result
+- **Query history** with generated SQL
+- **Download results as CSV** (plus a visual copy button)
 
-1. **Clone or download this project**
+This repo is designed for **local analytics workflows** and internal demos.
 
-2. **Install dependencies**:
-   ```bash
-   pip install -r requirements.txt
+---
+
+## 1. Requirements
+
+- Python 3.9+
+- pip
+- OpenAI API key
+
+---
+
+## 2. Install dependencies
+
+From the project root:
+
+```bash
+pip install -r requirements.txt
+```
+
+If you prefer a virtual environment:
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate        # macOS / Linux
+# .venv\Scripts\activate        # Windows
+pip install -r requirements.txt
+```
+
+---
+
+## 3. Get `analytics.db` (required)
+
+The app expects a local SQLite database named `analytics.db` in the
+project root. This file is **not committed to Git**.
+
+Instead, download it from the shared Google Drive folder:
+
+- **Drive folder:**  
+  https://drive.google.com/drive/folders/1TUXvwqOa5JtEl4maYUmI_6vI2MNVGX5C?usp=sharing
+
+Steps:
+
+1. Open the link above.
+2. Download the `analytics.db` file.
+3. Place it in the repository root so the structure looks like:
+
+   ```text
+   casino_ai_assistant/
+   ├── analytics.db          # ← put the downloaded file here
+   ├── simple_app.py
+   ├── database.py
+   ├── assets/
+   ├── requirements.txt
+   └── README.md
    ```
 
-3. **Set up environment variables**:
-   - Copy `.env.example` to `.env`
-   - Add your OpenAI API key:
-     ```
-     OPENAI_API_KEY=your_openai_api_key_here
-     ```
+> Anyone cloning this repo must download `analytics.db` from the Drive link
+> and place it as shown above before running the app.
 
-4. **Run the application**:
-   ```bash
-   streamlit run app.py
-   ```
+---
 
-## 🔧 Configuration
+## 4. Configure your OpenAI API key
 
-### Environment Variables
+The app reads `OPENAI_API_KEY` from the environment (or `.env` via `python-dotenv`).
 
-- `OPENAI_API_KEY`: Your OpenAI API key (required)
-- `DATABASE_URL`: Database connection string (default: SQLite)
-- `DATABASE_TYPE`: Database type (sqlite/mysql/postgresql)
+### Option A – Environment variable
 
-### Database Setup
+macOS / Linux:
 
-#### SQLite (Default)
-No additional setup required. The app will create a local SQLite database.
-
-#### MySQL
 ```bash
-DATABASE_URL=mysql+pymysql://username:password@host:port/database
-DATABASE_TYPE=mysql
+export OPENAI_API_KEY="sk-..."
 ```
 
-#### PostgreSQL
+Windows (PowerShell):
+
+```powershell
+$env:OPENAI_API_KEY="sk-..."
+```
+
+### Option B – `.env` file
+
+Create a `.env` file in the project root:
+
+```env
+OPENAI_API_KEY=sk-...
+```
+
+---
+
+## 5. Run the app
+
+From the project root (where `simple_app.py` lives and `analytics.db` is placed):
+
 ```bash
-DATABASE_URL=postgresql://username:password@host:port/database
-DATABASE_TYPE=postgresql
+streamlit run simple_app.py
 ```
 
-## 📖 Usage
+Open the URL shown in the terminal (typically http://localhost:8501).
 
-1. **Start the application** and navigate to the web interface
-2. **Connect to database** using the sidebar button
-3. **Create sample data** (optional) for testing
-4. **Enter your question** in natural language, such as:
-   - "Show me total sales by product"
-   - "What are the top 10 customers by age?"
-   - "Show sales trends over the last month"
-5. **Click "Generate & Execute Query"** to see results
-6. **View automatic visualizations** and download results if needed
+---
 
-## 💡 Example Queries
+## 6. How to use the app
 
-- "Show me the top 5 products by sales amount"
-- "What is the average age of customers in each city?"
-- "Show sales trends over time"
-- "Which region has the highest total sales?"
-- "List all customers older than 30"
-- "Show monthly sales summary"
+1. **Ask a question**  
+   In the main left panel, type your GSN Casino analytics question in
+   natural language, or choose one from **GSN Casino Example Queries**.
 
-## 🏗️ Architecture
+2. **Run query**  
+   Click **Run query & show results**. The app will:
 
-```
-├── app.py              # Main Streamlit application
-├── config.py           # Configuration settings
-├── database.py         # Database connection and operations
-├── sql_generator.py    # OpenAI integration for SQL generation
-├── requirements.txt    # Python dependencies
-├── .env.example       # Environment variables template
-└── README.md          # This file
-```
+   - Generate SQL from your question
+   - Execute it against `analytics.db` (table: `user_days`)
+   - Show the result table under **📊 Latest Query Results**
 
-## 🔒 Security Features
+3. **Inspect results**  
+   - Preview the table
+   - See column dtypes + definitions in **Result details & column profile**
+   - Download results as CSV
+   - (Right now the **Copy data to clipboard** button is visual only; due to
+     Streamlit constraints we don’t inject JS clipboard handlers.)
 
-- **SQL Injection Prevention**: Validates queries to prevent destructive operations
-- **Read-only Operations**: Blocks INSERT, UPDATE, DELETE, DROP operations
-- **API Key Protection**: Secure handling of OpenAI API credentials
-- **Query Validation**: Automatic validation of generated SQL queries
+4. **Generate insights & charts**  
+   - Scroll to **🧠 Insights & Visualizations**
+   - Click **✨ Generate Insights & Visualizations**
+   - The app sends the latest results sample + question to OpenAI to produce:
+     - Short, quantitative insight bullets
+     - A small set of chart specs (bar/line/pie/histogram) which are rendered
+       with Plotly in the app.
 
-## 🎨 Customization
+5. **Review query history**  
+   At the bottom, you can expand previous entries to see:
+   - The natural-language question
+   - The generated SQL
 
-### Adding New Database Types
-Extend the `DatabaseManager` class in `database.py` to support additional database types.
+---
 
-### Custom Visualizations
-Modify the `generate_visualizations()` function in `app.py` to add custom chart types.
+## 7. Dataset notes (`user_days`)
 
-### SQL Generation Prompts
-Customize the SQL generation prompts in `sql_generator.py` for domain-specific requirements.
+`analytics.db` contains a `user_days` table with columns such as:
 
-## 🐛 Troubleshooting
+- `event_day_pst` – Snapshot date
+- `user_id` – Unique user id
+- `bookings` – Revenue for that day
+- `bookings_lifetime` – Lifetime revenue (LTV) up to `event_day_pst`
+- `transactions` – Number of transactions
+- `payer_type` – Payer segmentation (with NULL = not active payer)
+- `slot_spins`, `slot_coins_used`, `slot_coins_gained`
+- `balance_coins_begin`, `balance_coins_end`
+- `install_first_date_pst` – Install date (used for tenure)
+- `platform` – ios / android / amazon (mobile) vs others (web/webstore)
+- `country` – User country
+- `engagement_7d` – Active days in last 7 days (7 = regular user)
 
-### Common Issues
+The SQL prompt in `simple_app.py` explains how to interpret
+active vs lifetime payers, including `bookings_lifetime = 0` for
+**lifetime non-payers**.
 
-1. **OpenAI API Key Error**
-   - Ensure your API key is correctly set in the `.env` file
-   - Check that your OpenAI account has sufficient credits
+---
 
-2. **Database Connection Issues**
-   - Verify database credentials and connection string
-   - Ensure the database server is running and accessible
+## 8. Limitations & notes
 
-3. **Query Generation Problems**
-   - Check that your database schema is properly loaded
-   - Try simpler, more specific natural language queries
+- `analytics.db` is **not** in the Git repo; it must be downloaded
+  from the Drive link each time you set up a fresh clone.
+- The **Copy data to clipboard** button is currently a visual element only
+  (no JS clipboard access in standard Streamlit markdown).
+- OpenAI usage depends on your API quota and billing; heavy usage may incur cost.
 
-### Error Messages
+---
 
-- `Database connection failed`: Check your database configuration
-- `SQL generation failed`: Verify OpenAI API key and connectivity
-- `Query execution failed`: Review the generated SQL for syntax errors
+## 9. Development hints
 
-## 📊 Sample Data Schema
+- Main app entrypoint: `simple_app.py`
+- DB helper: `database.py` (manages the SQLite connection to `analytics.db`)
+- To modify the SQL prompt/behavior, edit `generate_sql_query` in `simple_app.py`.
+- To tweak insight generation, edit `generate_result_insights` in `simple_app.py`.
 
-The application includes sample tables:
+---
 
-### Sales Table
-- `id`: Unique identifier
-- `product`: Product name
-- `sales_amount`: Sales amount in dollars
-- `sales_date`: Date of sale
-- `region`: Sales region
+## 10. License / internal use
 
-### Customers Table
-- `customer_id`: Unique customer identifier
-- `customer_name`: Customer name
-- `age`: Customer age
-- `city`: Customer city
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests if applicable
-5. Submit a pull request
-
-## 📄 License
-
-This project is open source and available under the MIT License.
-
-## 🆘 Support
-
-For issues and questions:
-1. Check the troubleshooting section
-2. Review the example queries
-3. Ensure all dependencies are properly installed
-4. Verify your OpenAI API key is valid
-
-## 🔮 Future Enhancements
-
-- Support for more database types
-- Advanced visualization options
-- Query optimization suggestions
-- Natural language result explanations
-- Collaborative query sharing
-- Advanced analytics and insights
+This project is intended for internal/demo use around casino analytics.
+Check with your team before sharing outside your organization.

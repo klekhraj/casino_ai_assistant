@@ -31,8 +31,8 @@ st.markdown(
     }
 
     .block-container {
-        padding-top: 1.8rem;
-        padding-bottom: 3.2rem;
+        padding-top: 0.9rem;
+        padding-bottom: 2.4rem;
         max-width: 1120px;
     }
 
@@ -57,7 +57,7 @@ st.markdown(
         font-size: 1.05rem;
         color: #cbd5f5;
         opacity: 0.98;
-        margin-bottom: 2.1rem;
+        margin-bottom: 0.2rem;
     }
 
     /* Glass cards */
@@ -83,6 +83,30 @@ st.markdown(
         font-size: 1.05rem;
         font-weight: 700;
         margin-bottom: 0.35rem;
+    }
+
+    /* Tight label helper to keep text close to the control below */
+    .tight-label {
+        font-size: 0.9rem;
+        font-weight: 600;
+        color: #e5e7eb;
+        margin-bottom: 0.05rem;
+    }
+
+    /* Wider label spacing when needed (e.g., above FAQ dropdown) */
+    .wide-gap-label {
+        font-size: 0.9rem;
+        font-weight: 600;
+        color: #e5e7eb;
+        margin-bottom: 0.3rem;
+    }
+
+    /* Pull text area up to tighten first label gap; leave selectbox lower */
+    .stTextArea {
+        margin-top: -0.84rem !important;   /* ~20% tighter gap for first big input box */
+    }
+    .stSelectbox {
+        margin-top: 0.1rem !important;    /* larger gap for dropdown */
     }
 
     /* Primary CTA: rectangular with soft rounded edges to match other buttons */
@@ -404,21 +428,23 @@ def _set_query_from_example():
 
 
 def main():
-    # Header
-    st.markdown("<div style='margin-top: 1.5rem'></div>", unsafe_allow_html=True)
+    # Header (restore small spacer so logo is not flush with the top)
+    st.markdown("<div style='margin-top: 0.4rem'></div>", unsafe_allow_html=True)
     header_logo_col, header_text_col = st.columns([1, 3])
 
     with header_logo_col:
         st.image("assets/gsn_logo.png", width=180)
 
     with header_text_col:
-        st.markdown("<div style='margin-top: 1.2rem'></div>", unsafe_allow_html=True)
+        # Slightly smaller offset so text sits higher relative to the logo
+        st.markdown("<div style='margin-top: 0rem'></div>", unsafe_allow_html=True)
         st.markdown('<div class="gsn-hero-title">CASINO ANALYTICS AI ASSISTANT</div>', unsafe_allow_html=True)
         st.markdown(
             '<div class="gsn-hero-subtitle">Leveraging SQL and AI for advanced casino analytics insights.</div>',
             unsafe_allow_html=True,
         )
 
+    # Very tight spacing between hero and main content
     st.markdown("<hr />", unsafe_allow_html=True)
 
     # Main content area (no sidebar) with a spacer to push options further right
@@ -427,8 +453,11 @@ def main():
     with col1:
         st.header("💬 Let me know what you’d like to ask below")
 
-        # Main free-form question input (first, more prominent)
-        st.markdown("**Enter your GSN Casino analytics question**")
+        # Main free-form question input with shared tight-label styling
+        st.markdown(
+            '<div class="tight-label">Enter your GSN Casino analytics question</div>',
+            unsafe_allow_html=True,
+        )
         user_query = st.text_area(
             label="",
             placeholder="e.g., Get DAU for last 7 days or Show revenue by payer type",
@@ -438,7 +467,6 @@ def main():
 
         # Example queries shown below as "frequently asked questions"
         st.subheader("💡 GSN Casino Example Queries")
-        st.markdown("**Or select from frequently asked questions**")
         example_queries = [
             "Get DAU (daily active users) in last 7 days",
             "Get average DAU in last 7 days",
@@ -451,6 +479,11 @@ def main():
             "Show high payer vs low payer revenue comparison",
             "Get mobile platform DAU vs web platform DAU",
         ]
+
+        st.markdown(
+            '<div class="wide-gap-label">Or select from frequently asked questions</div>',
+            unsafe_allow_html=True,
+        )
 
         st.selectbox(
             label="",
