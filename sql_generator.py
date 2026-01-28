@@ -1,4 +1,4 @@
-import openai
+from openai import OpenAI
 from typing import Optional, Dict, Any, List
 import streamlit as st
 from config import Config
@@ -6,7 +6,7 @@ from config import Config
 class SQLGenerator:
     def __init__(self):
         self.config = Config()
-        openai.api_key = self.config.OPENAI_API_KEY
+        self.client = OpenAI(api_key=self.config.OPENAI_API_KEY) if self.config.OPENAI_API_KEY else None
         
     def generate_sql_prompt(self, user_query: str, schema_info: Dict[str, Any]) -> str:
         """Generate the prompt for OpenAI to convert natural language to SQL"""
@@ -50,13 +50,13 @@ SQL Query:
     def generate_sql(self, user_query: str, schema_info: Dict[str, Any]) -> Optional[str]:
         """Generate SQL query from natural language using OpenAI"""
         try:
-            if not self.config.OPENAI_API_KEY:
+            if not self.config.OPENAI_API_KEY or not self.client:
                 st.error("OpenAI API key not configured. Please set OPENAI_API_KEY in your environment.")
                 return None
             
             prompt = self.generate_sql_prompt(user_query, schema_info)
             
-            response = openai.ChatCompletion.create(
+            response = self.client.chat.completions.create(
                 model=self.config.OPENAI_MODEL,
                 messages=[
                     {"role": "system", "content": "You are an expert SQL query generator. Generate only valid SQL queries without any explanations or markdown formatting."},
@@ -92,6 +92,10 @@ SQL Query:
     def explain_sql(self, sql_query: str) -> Optional[str]:
         """Generate explanation for the SQL query"""
         try:
+            if not self.config.OPENAI_API_KEY or not self.client:
+                st.error("OpenAI API key not configured. Please set OPENAI_API_KEY in your environment.")
+                return None
+
             prompt = f"""
 Explain this SQL query in simple terms:
 
@@ -100,7 +104,7 @@ Explain this SQL query in simple terms:
 Provide a clear, concise explanation of what this query does.
 """
             
-            response = openai.ChatCompletion.create(
+            response = self.client.chat.completions.create(
                 model=self.config.OPENAI_MODEL,
                 messages=[
                     {"role": "system", "content": "You are an SQL expert. Explain SQL queries in simple, clear terms."},

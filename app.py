@@ -25,8 +25,29 @@ if 'sql_generator' not in st.session_state:
     st.session_state.sql_generator = SQLGenerator()
 if 'query_history' not in st.session_state:
     st.session_state.query_history = []
+if 'authenticated' not in st.session_state:
+    st.session_state.authenticated = False
+
+def login():
+    if st.session_state.authenticated:
+        return True
+
+    st.title("🔐 Analytics AI Tool Login")
+    username = st.text_input("Username", autocomplete="username")
+    password = st.text_input("Password", type="password", autocomplete="current-password")
+    if st.button("Sign in"):
+        if username == config.LOGIN_USERNAME and password == config.LOGIN_PASSWORD:
+            st.session_state.authenticated = True
+            st.rerun()
+        else:
+            st.error("Invalid username or password")
+
+    return False
 
 def main():
+    if not login():
+        return
+
     # Header
     st.title("📊 Analytics AI Tool")
     st.markdown("Convert natural language to SQL queries and visualize your data instantly!")

@@ -103,7 +103,7 @@ st.markdown(
 
     /* Pull text area up to tighten first label gap; leave selectbox lower */
     .stTextArea {
-        margin-top: -0.84rem !important;   /* ~20% tighter gap for first big input box */
+        margin-top: -0.7rem !important;   /* tighter gap for first big input box */
     }
     .stSelectbox {
         margin-top: 0.1rem !important;    /* larger gap for dropdown */
