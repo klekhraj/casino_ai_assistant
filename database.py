@@ -3,6 +3,8 @@ import pandas as pd
 from sqlalchemy import create_engine, text
 from typing import Optional, Dict, Any, List
 import streamlit as st
+import os
+import requests
 from config import Config
 
 class DatabaseManager:
@@ -10,6 +12,30 @@ class DatabaseManager:
         self.config = Config()
         self.engine = None
         self.connection = None
+        self._ensure_database()
+    
+    def _ensure_database(self):
+        """Download analytics.db if it doesn't exist locally."""
+        db_path = "analytics.db"
+        if os.path.exists(db_path):
+            return
+        if not self.config.DB_DOWNLOAD_URL:
+            st.warning("DB_DOWNLOAD_URL not set; analytics.db not found locally.")
+            return
+        try:
+            with st.spinner("Downloading analytics.db..."):
+                direct_url = Config.get_direct_drive_url(self.config.DB_DOWNLOAD_URL)
+                response = requests.get(direct_url, stream=True, timeout=60)
+                response.raise_for_status()
+                total = int(response.headers.get("content-length", 0))
+                with open(db_path, "wb") as f, st.progress(0) as bar:
+                    for data in response.iter_content(chunk_size=8192):
+                        size = f.write(data)
+                        if total > 0:
+                            bar.progress(min(f.tell() / total, 1.0))
+            st.success("analytics.db downloaded successfully.")
+        except Exception as e:
+            st.error(f"Failed to download analytics.db: {e}")
         
     def connect(self) -> bool:
         """Establish database connection"""

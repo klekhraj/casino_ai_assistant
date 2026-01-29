@@ -15,6 +15,15 @@ class Config:
     DATABASE_TYPE = os.getenv("DATABASE_TYPE", "sqlite")
     LOGIN_USERNAME = os.getenv("LOGIN_USERNAME", "analytics_user")
     LOGIN_PASSWORD = os.getenv("LOGIN_PASSWORD", "change_me")
+    DB_DOWNLOAD_URL = os.getenv("DB_DOWNLOAD_URL")
+    
+    @staticmethod
+    def get_direct_drive_url(share_url: str) -> str:
+        """Convert Google Drive share URL to direct download URL."""
+        if "drive.google.com" in share_url and "/file/d/" in share_url:
+            file_id = share_url.split("/file/d/")[1].split("/")[0]
+            return f"https://drive.google.com/uc?export=download&id={file_id}"
+        return share_url
     
     # OpenAI Configuration
     OPENAI_MODEL = "gpt-3.5-turbo"
