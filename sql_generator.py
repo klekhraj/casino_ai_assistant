@@ -1,21 +1,13 @@
-from openai import OpenAI
+from anthropic import Anthropic
 from typing import Optional, Dict, Any, List
 import streamlit as st
 from config import Config
 import os
-import httpx
-
-# Monkey-patch OpenAI to ignore proxies argument
-original_init = OpenAI.__init__
-def patched_init(self, *args, **kwargs):
-    kwargs.pop('proxies', None)  # Remove proxies if present
-    return original_init(self, *args, **kwargs)
-OpenAI.__init__ = patched_init
 
 class SQLGenerator:
     def __init__(self):
         self.config = Config()
-        self.client = None  # Lazy initialization to avoid proxy error during import
+        self.client = None  # Lazy initialization
         
     def generate_sql_prompt(self, user_query: str, schema_info: Dict[str, Any]) -> str:
         """Generate the prompt for OpenAI to convert natural language to SQL"""
@@ -57,29 +49,28 @@ SQL Query:
         return prompt
     
     def generate_sql(self, user_query: str, schema_info: Dict[str, Any]) -> Optional[str]:
-        """Generate SQL query from natural language using OpenAI"""
+        """Generate SQL query from natural language using Anthropic"""
         try:
             if not self.config.OPENAI_API_KEY:
-                st.error("OpenAI API key not configured. Please set OPENAI_API_KEY in your environment.")
+                st.error("API key not configured. Please set OPENAI_API_KEY in your environment.")
                 return None
             
-            # Simple initialization for openai==1.3.5
+            # Lazy initialization
             if self.client is None:
-                self.client = OpenAI(api_key=self.config.OPENAI_API_KEY)
+                self.client = Anthropic(api_key=self.config.OPENAI_API_KEY)
             
             prompt = self.generate_sql_prompt(user_query, schema_info)
             
-            response = self.client.chat.completions.create(
+            response = self.client.messages.create(
                 model=self.config.OPENAI_MODEL,
-                messages=[
-                    {"role": "system", "content": "You are an expert SQL query generator. Generate only valid SQL queries without any explanations or markdown formatting."},
-                    {"role": "user", "content": prompt}
-                ],
                 max_tokens=self.config.MAX_TOKENS,
-                temperature=self.config.TEMPERATURE
+                temperature=self.config.TEMPERATURE,
+                messages=[
+                    {"role": "user", "content": prompt}
+                ]
             )
             
-            sql_query = response.choices[0].message.content.strip()
+            sql_query = response.content[0].text.strip()
             
             # Clean up the response (remove any markdown formatting)
             sql_query = sql_query.replace("```sql", "").replace("```", "").strip()
@@ -106,12 +97,12 @@ SQL Query:
         """Generate explanation for the SQL query"""
         try:
             if not self.config.OPENAI_API_KEY:
-                st.error("OpenAI API key not configured. Please set OPENAI_API_KEY in your environment.")
+                st.error("API key not configured. Please set OPENAI_API_KEY in your environment.")
                 return None
 
-            # Simple initialization for openai==1.3.5
+            # Lazy initialization
             if self.client is None:
-                self.client = OpenAI(api_key=self.config.OPENAI_API_KEY)
+                self.client = Anthropic(api_key=self.config.OPENAI_API_KEY)
 
             prompt = f"""
 Explain this SQL query in simple terms:
@@ -121,17 +112,16 @@ Explain this SQL query in simple terms:
 Provide a clear, concise explanation of what this query does.
 """
             
-            response = self.client.chat.completions.create(
+            response = self.client.messages.create(
                 model=self.config.OPENAI_MODEL,
-                messages=[
-                    {"role": "system", "content": "You are an SQL expert. Explain SQL queries in simple, clear terms."},
-                    {"role": "user", "content": prompt}
-                ],
                 max_tokens=300,
-                temperature=0.3
+                temperature=0.3,
+                messages=[
+                    {"role": "user", "content": prompt}
+                ]
             )
             
-            return response.choices[0].message.content.strip()
+            return response.content[0].text.strip()
             
         except Exception as e:
             st.error(f"SQL explanation failed: {str(e)}")
