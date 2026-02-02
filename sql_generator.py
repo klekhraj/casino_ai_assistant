@@ -57,17 +57,17 @@ SQL Query:
             
             # Lazy initialization to avoid proxy error during import
             if self.client is None:
-                # Temporarily unset proxy env vars to avoid OpenAI client error
-                old_proxies = os.environ.pop('http_proxy', None), os.environ.pop('https_proxy', None)
+                # Set API key in environment to avoid passing it to client constructor
+                old_api_key = os.environ.get('OPENAI_API_KEY')
                 try:
+                    os.environ['OPENAI_API_KEY'] = self.config.OPENAI_API_KEY
                     self.client = OpenAI()
-                    self.client.api_key = self.config.OPENAI_API_KEY
                 finally:
-                    # Restore proxy env vars if they were set
-                    if old_proxies[0]:
-                        os.environ['http_proxy'] = old_proxies[0]
-                    if old_proxies[1]:
-                        os.environ['https_proxy'] = old_proxies[1]
+                    # Restore original API key if it existed
+                    if old_api_key is not None:
+                        os.environ['OPENAI_API_KEY'] = old_api_key
+                    elif 'OPENAI_API_KEY' in os.environ:
+                        del os.environ['OPENAI_API_KEY']
             
             prompt = self.generate_sql_prompt(user_query, schema_info)
             
@@ -113,17 +113,17 @@ SQL Query:
 
             # Lazy initialization to avoid proxy error during import
             if self.client is None:
-                # Temporarily unset proxy env vars to avoid OpenAI client error
-                old_proxies = os.environ.pop('http_proxy', None), os.environ.pop('https_proxy', None)
+                # Set API key in environment to avoid passing it to client constructor
+                old_api_key = os.environ.get('OPENAI_API_KEY')
                 try:
+                    os.environ['OPENAI_API_KEY'] = self.config.OPENAI_API_KEY
                     self.client = OpenAI()
-                    self.client.api_key = self.config.OPENAI_API_KEY
                 finally:
-                    # Restore proxy env vars if they were set
-                    if old_proxies[0]:
-                        os.environ['http_proxy'] = old_proxies[0]
-                    if old_proxies[1]:
-                        os.environ['https_proxy'] = old_proxies[1]
+                    # Restore original API key if it existed
+                    if old_api_key is not None:
+                        os.environ['OPENAI_API_KEY'] = old_api_key
+                    elif 'OPENAI_API_KEY' in os.environ:
+                        del os.environ['OPENAI_API_KEY']
 
             prompt = f"""
 Explain this SQL query in simple terms:
