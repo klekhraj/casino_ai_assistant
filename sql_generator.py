@@ -1,4 +1,5 @@
-from anthropic import Anthropic
+import requests
+import json
 from typing import Optional, Dict, Any, List
 import streamlit as st
 from config import Config
@@ -7,7 +8,7 @@ import os
 class SQLGenerator:
     def __init__(self):
         self.config = Config()
-        self.client = None  # Lazy initialization
+        self.api_key = self.config.OPENAI_API_KEY
         
     def generate_sql_prompt(self, user_query: str, schema_info: Dict[str, Any]) -> str:
         """Generate the prompt for OpenAI to convert natural language to SQL"""
@@ -49,28 +50,39 @@ SQL Query:
         return prompt
     
     def generate_sql(self, user_query: str, schema_info: Dict[str, Any]) -> Optional[str]:
-        """Generate SQL query from natural language using Anthropic"""
+        """Generate SQL query from natural language using OpenAI via HTTP"""
         try:
-            if not self.config.OPENAI_API_KEY:
-                st.error("API key not configured. Please set OPENAI_API_KEY in your environment.")
+            if not self.api_key:
+                st.error("OpenAI API key not configured. Please set OPENAI_API_KEY in your environment.")
                 return None
-            
-            # Lazy initialization
-            if self.client is None:
-                self.client = Anthropic(api_key=self.config.OPENAI_API_KEY)
             
             prompt = self.generate_sql_prompt(user_query, schema_info)
             
-            response = self.client.messages.create(
-                model=self.config.OPENAI_MODEL,
-                max_tokens=self.config.MAX_TOKENS,
-                temperature=self.config.TEMPERATURE,
-                messages=[
-                    {"role": "user", "content": prompt}
-                ]
-            )
+            headers = {
+                "Authorization": f"Bearer {self.api_key}",
+                "Content-Type": "application/json"
+            }
             
-            sql_query = response.content[0].text.strip()
+            data = {
+                "model": self.config.OPENAI_MODEL,
+                "messages": [
+                    {"role": "system", "content": "You are an expert SQL query generator. Generate only valid SQL queries without any explanations or markdown formatting."},
+                    {"role": "user", "content": prompt}
+                ],
+                "max_tokens": self.config.MAX_TOKENS,
+                "temperature": self.config.TEMPERATURE
+            }
+            
+            response = requests.post(
+                "https://api.openai.com/v1/chat/completions",
+                headers=headers,
+                json=data,
+                timeout=30
+            )
+            response.raise_for_status()
+            
+            result = response.json()
+            sql_query = result["choices"][0]["message"]["content"].strip()
             
             # Clean up the response (remove any markdown formatting)
             sql_query = sql_query.replace("```sql", "").replace("```", "").strip()
@@ -94,15 +106,11 @@ SQL Query:
         return True
     
     def explain_sql(self, sql_query: str) -> Optional[str]:
-        """Generate explanation for the SQL query"""
+        """Generate explanation for the SQL query using OpenAI via HTTP"""
         try:
-            if not self.config.OPENAI_API_KEY:
-                st.error("API key not configured. Please set OPENAI_API_KEY in your environment.")
+            if not self.api_key:
+                st.error("OpenAI API key not configured. Please set OPENAI_API_KEY in your environment.")
                 return None
-
-            # Lazy initialization
-            if self.client is None:
-                self.client = Anthropic(api_key=self.config.OPENAI_API_KEY)
 
             prompt = f"""
 Explain this SQL query in simple terms:
@@ -112,16 +120,31 @@ Explain this SQL query in simple terms:
 Provide a clear, concise explanation of what this query does.
 """
             
-            response = self.client.messages.create(
-                model=self.config.OPENAI_MODEL,
-                max_tokens=300,
-                temperature=0.3,
-                messages=[
-                    {"role": "user", "content": prompt}
-                ]
-            )
+            headers = {
+                "Authorization": f"Bearer {self.api_key}",
+                "Content-Type": "application/json"
+            }
             
-            return response.content[0].text.strip()
+            data = {
+                "model": self.config.OPENAI_MODEL,
+                "messages": [
+                    {"role": "system", "content": "You are an SQL expert. Explain SQL queries in simple, clear terms."},
+                    {"role": "user", "content": prompt}
+                ],
+                "max_tokens": 300,
+                "temperature": 0.3
+            }
+            
+            response = requests.post(
+                "https://api.openai.com/v1/chat/completions",
+                headers=headers,
+                json=data,
+                timeout=30
+            )
+            response.raise_for_status()
+            
+            result = response.json()
+            return result["choices"][0]["message"]["content"].strip()
             
         except Exception as e:
             st.error(f"SQL explanation failed: {str(e)}")
