@@ -5,6 +5,13 @@ from config import Config
 import os
 import httpx
 
+# Monkey-patch OpenAI to ignore proxies argument
+original_init = OpenAI.__init__
+def patched_init(self, *args, **kwargs):
+    kwargs.pop('proxies', None)  # Remove proxies if present
+    return original_init(self, *args, **kwargs)
+OpenAI.__init__ = patched_init
+
 class SQLGenerator:
     def __init__(self):
         self.config = Config()
