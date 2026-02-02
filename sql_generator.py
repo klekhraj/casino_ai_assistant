@@ -64,6 +64,7 @@ SQL Query:
                 "Authorization": f"Bearer {self.api_key.strip()}",
                 "Content-Type": "application/json"
             }
+            st.write(f"[DEBUG] Headers: {headers}")
             
             data = {
                 "model": self.config.OPENAI_MODEL,
