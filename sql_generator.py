@@ -10,7 +10,9 @@ class SQLGenerator:
         # Temporarily unset proxy env vars to avoid OpenAI client error
         old_proxies = os.environ.pop('http_proxy', None), os.environ.pop('https_proxy', None)
         try:
-            self.client = OpenAI(api_key=self.config.OPENAI_API_KEY) if self.config.OPENAI_API_KEY else None
+            self.client = OpenAI() if self.config.OPENAI_API_KEY else None
+            if self.client and self.config.OPENAI_API_KEY:
+                self.client.api_key = self.config.OPENAI_API_KEY
         finally:
             # Restore proxy env vars if they were set
             if old_proxies[0]:
