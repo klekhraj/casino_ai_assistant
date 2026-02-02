@@ -3,6 +3,7 @@ from typing import Optional, Dict, Any, List
 import streamlit as st
 from config import Config
 import os
+import httpx
 
 class SQLGenerator:
     def __init__(self):
@@ -55,19 +56,10 @@ SQL Query:
                 st.error("OpenAI API key not configured. Please set OPENAI_API_KEY in your environment.")
                 return None
             
-            # Lazy initialization to avoid proxy error during import
+            # Lazy initialization with custom httpx client to bypass proxy
             if self.client is None:
-                # Set API key in environment to avoid passing it to client constructor
-                old_api_key = os.environ.get('OPENAI_API_KEY')
-                try:
-                    os.environ['OPENAI_API_KEY'] = self.config.OPENAI_API_KEY
-                    self.client = OpenAI()
-                finally:
-                    # Restore original API key if it existed
-                    if old_api_key is not None:
-                        os.environ['OPENAI_API_KEY'] = old_api_key
-                    elif 'OPENAI_API_KEY' in os.environ:
-                        del os.environ['OPENAI_API_KEY']
+                http_client = httpx.Client(proxies={}, trust_env=False)
+                self.client = OpenAI(api_key=self.config.OPENAI_API_KEY, http_client=http_client)
             
             prompt = self.generate_sql_prompt(user_query, schema_info)
             
@@ -111,19 +103,10 @@ SQL Query:
                 st.error("OpenAI API key not configured. Please set OPENAI_API_KEY in your environment.")
                 return None
 
-            # Lazy initialization to avoid proxy error during import
+            # Lazy initialization with custom httpx client to bypass proxy
             if self.client is None:
-                # Set API key in environment to avoid passing it to client constructor
-                old_api_key = os.environ.get('OPENAI_API_KEY')
-                try:
-                    os.environ['OPENAI_API_KEY'] = self.config.OPENAI_API_KEY
-                    self.client = OpenAI()
-                finally:
-                    # Restore original API key if it existed
-                    if old_api_key is not None:
-                        os.environ['OPENAI_API_KEY'] = old_api_key
-                    elif 'OPENAI_API_KEY' in os.environ:
-                        del os.environ['OPENAI_API_KEY']
+                http_client = httpx.Client(proxies={}, trust_env=False)
+                self.client = OpenAI(api_key=self.config.OPENAI_API_KEY, http_client=http_client)
 
             prompt = f"""
 Explain this SQL query in simple terms:
