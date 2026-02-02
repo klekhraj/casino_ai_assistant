@@ -15,7 +15,7 @@ class Config:
     DATABASE_TYPE = os.getenv("DATABASE_TYPE", "sqlite")
     LOGIN_USERNAME = os.getenv("LOGIN_USERNAME", "analytics_user")
     LOGIN_PASSWORD = os.getenv("LOGIN_PASSWORD", "change_me")
-    DB_DOWNLOAD_URL = os.getenv("DB_DOWNLOAD_URL") or "https://drive.google.com/uc?export=download&id=1RjASy_MEAjFV2U-ANWw6h4g0mQob5v9L"
+    DB_DOWNLOAD_URL = os.getenv("DB_DOWNLOAD_URL") or "https://github.com/klekhraj/casino_ai_assistant/releases/download/v1.0.0/analytics.db"
     print(f"[DEBUG] DB_DOWNLOAD_URL loaded: {bool(DB_DOWNLOAD_URL)}")
     
     @staticmethod
