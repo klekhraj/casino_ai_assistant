@@ -15,7 +15,7 @@ class Config:
     DATABASE_TYPE = os.getenv("DATABASE_TYPE", "sqlite")
     LOGIN_USERNAME = os.getenv("LOGIN_USERNAME", "analytics_user")
     LOGIN_PASSWORD = os.getenv("LOGIN_PASSWORD", "change_me")
-    DB_DOWNLOAD_URL = os.getenv("DB_DOWNLOAD_URL")
+    DB_DOWNLOAD_URL = os.getenv("DB_DOWNLOAD_URL", "https://drive.google.com/file/d/1RjASy_MEAjFV2U-ANWw6h4g0mQob5v9L/view?usp=drive_link")
     print(f"[DEBUG] DB_DOWNLOAD_URL loaded: {bool(DB_DOWNLOAD_URL)}")
     
     @staticmethod
