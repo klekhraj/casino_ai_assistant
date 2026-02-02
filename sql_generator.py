@@ -7,18 +7,7 @@ import os
 class SQLGenerator:
     def __init__(self):
         self.config = Config()
-        # Temporarily unset proxy env vars to avoid OpenAI client error
-        old_proxies = os.environ.pop('http_proxy', None), os.environ.pop('https_proxy', None)
-        try:
-            self.client = OpenAI() if self.config.OPENAI_API_KEY else None
-            if self.client and self.config.OPENAI_API_KEY:
-                self.client.api_key = self.config.OPENAI_API_KEY
-        finally:
-            # Restore proxy env vars if they were set
-            if old_proxies[0]:
-                os.environ['http_proxy'] = old_proxies[0]
-            if old_proxies[1]:
-                os.environ['https_proxy'] = old_proxies[1]
+        self.client = None  # Lazy initialization to avoid proxy error during import
         
     def generate_sql_prompt(self, user_query: str, schema_info: Dict[str, Any]) -> str:
         """Generate the prompt for OpenAI to convert natural language to SQL"""
@@ -62,9 +51,23 @@ SQL Query:
     def generate_sql(self, user_query: str, schema_info: Dict[str, Any]) -> Optional[str]:
         """Generate SQL query from natural language using OpenAI"""
         try:
-            if not self.config.OPENAI_API_KEY or not self.client:
+            if not self.config.OPENAI_API_KEY:
                 st.error("OpenAI API key not configured. Please set OPENAI_API_KEY in your environment.")
                 return None
+            
+            # Lazy initialization to avoid proxy error during import
+            if self.client is None:
+                # Temporarily unset proxy env vars to avoid OpenAI client error
+                old_proxies = os.environ.pop('http_proxy', None), os.environ.pop('https_proxy', None)
+                try:
+                    self.client = OpenAI()
+                    self.client.api_key = self.config.OPENAI_API_KEY
+                finally:
+                    # Restore proxy env vars if they were set
+                    if old_proxies[0]:
+                        os.environ['http_proxy'] = old_proxies[0]
+                    if old_proxies[1]:
+                        os.environ['https_proxy'] = old_proxies[1]
             
             prompt = self.generate_sql_prompt(user_query, schema_info)
             
@@ -104,9 +107,23 @@ SQL Query:
     def explain_sql(self, sql_query: str) -> Optional[str]:
         """Generate explanation for the SQL query"""
         try:
-            if not self.config.OPENAI_API_KEY or not self.client:
+            if not self.config.OPENAI_API_KEY:
                 st.error("OpenAI API key not configured. Please set OPENAI_API_KEY in your environment.")
                 return None
+
+            # Lazy initialization to avoid proxy error during import
+            if self.client is None:
+                # Temporarily unset proxy env vars to avoid OpenAI client error
+                old_proxies = os.environ.pop('http_proxy', None), os.environ.pop('https_proxy', None)
+                try:
+                    self.client = OpenAI()
+                    self.client.api_key = self.config.OPENAI_API_KEY
+                finally:
+                    # Restore proxy env vars if they were set
+                    if old_proxies[0]:
+                        os.environ['http_proxy'] = old_proxies[0]
+                    if old_proxies[1]:
+                        os.environ['https_proxy'] = old_proxies[1]
 
             prompt = f"""
 Explain this SQL query in simple terms:
