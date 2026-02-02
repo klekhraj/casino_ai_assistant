@@ -2,11 +2,21 @@ from openai import OpenAI
 from typing import Optional, Dict, Any, List
 import streamlit as st
 from config import Config
+import os
 
 class SQLGenerator:
     def __init__(self):
         self.config = Config()
-        self.client = OpenAI(api_key=self.config.OPENAI_API_KEY) if self.config.OPENAI_API_KEY else None
+        # Temporarily unset proxy env vars to avoid OpenAI client error
+        old_proxies = os.environ.pop('http_proxy', None), os.environ.pop('https_proxy', None)
+        try:
+            self.client = OpenAI(api_key=self.config.OPENAI_API_KEY) if self.config.OPENAI_API_KEY else None
+        finally:
+            # Restore proxy env vars if they were set
+            if old_proxies[0]:
+                os.environ['http_proxy'] = old_proxies[0]
+            if old_proxies[1]:
+                os.environ['https_proxy'] = old_proxies[1]
         
     def generate_sql_prompt(self, user_query: str, schema_info: Dict[str, Any]) -> str:
         """Generate the prompt for OpenAI to convert natural language to SQL"""
