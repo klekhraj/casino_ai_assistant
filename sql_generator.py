@@ -56,10 +56,12 @@ SQL Query:
                 st.error("OpenAI API key not configured. Please set OPENAI_API_KEY in your environment.")
                 return None
             
+            st.write(f"[DEBUG] Using API key: {self.api_key[:10]}...{self.api_key[-4:]}")
+            
             prompt = self.generate_sql_prompt(user_query, schema_info)
             
             headers = {
-                "Authorization": f"Bearer {self.api_key}",
+                "Authorization": f"Bearer {self.api_key.strip()}",
                 "Content-Type": "application/json"
             }
             
@@ -79,6 +81,8 @@ SQL Query:
                 json=data,
                 timeout=30
             )
+            st.write(f"[DEBUG] Response status: {response.status_code}")
+            st.write(f"[DEBUG] Response body: {response.text}")
             response.raise_for_status()
             
             result = response.json()
