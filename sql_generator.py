@@ -56,10 +56,9 @@ SQL Query:
                 st.error("OpenAI API key not configured. Please set OPENAI_API_KEY in your environment.")
                 return None
             
-            # Lazy initialization with custom httpx client to bypass proxy
+            # Simple initialization for openai==1.3.5
             if self.client is None:
-                http_client = httpx.Client(proxies={}, trust_env=False)
-                self.client = OpenAI(api_key=self.config.OPENAI_API_KEY, http_client=http_client)
+                self.client = OpenAI(api_key=self.config.OPENAI_API_KEY)
             
             prompt = self.generate_sql_prompt(user_query, schema_info)
             
@@ -103,10 +102,9 @@ SQL Query:
                 st.error("OpenAI API key not configured. Please set OPENAI_API_KEY in your environment.")
                 return None
 
-            # Lazy initialization with custom httpx client to bypass proxy
+            # Simple initialization for openai==1.3.5
             if self.client is None:
-                http_client = httpx.Client(proxies={}, trust_env=False)
-                self.client = OpenAI(api_key=self.config.OPENAI_API_KEY, http_client=http_client)
+                self.client = OpenAI(api_key=self.config.OPENAI_API_KEY)
 
             prompt = f"""
 Explain this SQL query in simple terms:
