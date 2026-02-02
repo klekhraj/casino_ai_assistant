@@ -9,8 +9,8 @@ else:
     print("[DEBUG] .env not found; relying on system environment variables")
 
 class Config:
-    OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-    print(f"[DEBUG] OPENAI_API_KEY loaded: {bool(OPENAI_API_KEY)}")
+    API_KEY = os.getenv("OPENAI_API_KEY")
+    print(f"[DEBUG] OPENAI_API_KEY loaded: {bool(API_KEY)}")
     DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///analytics.db")
     DATABASE_TYPE = os.getenv("DATABASE_TYPE", "sqlite")
     LOGIN_USERNAME = os.getenv("LOGIN_USERNAME", "analytics_user")

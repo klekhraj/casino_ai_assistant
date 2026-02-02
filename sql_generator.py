@@ -8,7 +8,7 @@ import os
 class SQLGenerator:
     def __init__(self):
         self.config = Config()
-        self.api_key = self.config.OPENAI_API_KEY
+        self.api_key = self.config.API_KEY
         
     def generate_sql_prompt(self, user_query: str, schema_info: Dict[str, Any]) -> str:
         """Generate the prompt for OpenAI to convert natural language to SQL"""
