@@ -16,6 +16,7 @@ class Config:
     LOGIN_USERNAME = os.getenv("LOGIN_USERNAME", "analytics_user")
     LOGIN_PASSWORD = os.getenv("LOGIN_PASSWORD", "change_me")
     DB_DOWNLOAD_URL = os.getenv("DB_DOWNLOAD_URL")
+    print(f"[DEBUG] DB_DOWNLOAD_URL loaded: {bool(DB_DOWNLOAD_URL)}")
     
     @staticmethod
     def get_direct_drive_url(share_url: str) -> str:
