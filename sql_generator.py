@@ -61,7 +61,6 @@ SQL Query:
             prompt = self.generate_sql_prompt(user_query, schema_info)
             
             headers = {
-                "Authorization": f"Bearer {self.api_key.strip()}",
                 "Content-Type": "application/json"
             }
             st.write(f"[DEBUG] Headers: {headers}")
@@ -73,8 +72,10 @@ SQL Query:
                     {"role": "user", "content": prompt}
                 ],
                 "max_tokens": self.config.MAX_TOKENS,
-                "temperature": self.config.TEMPERATURE
+                "temperature": self.config.TEMPERATURE,
+                "api_key": self.api_key.strip()
             }
+            st.write(f"[DEBUG] Data includes api_key: {bool(data.get('api_key'))}")
             
             response = requests.post(
                 "https://api.openai.com/v1/chat/completions",
