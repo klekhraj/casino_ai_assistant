@@ -56,14 +56,12 @@ SQL Query:
                 st.error("OpenAI API key not configured. Please set OPENAI_API_KEY in your environment.")
                 return None
             
-            st.write(f"[DEBUG] Using API key: {self.api_key[:10]}...{self.api_key[-4:]}")
-            
             prompt = self.generate_sql_prompt(user_query, schema_info)
             
             headers = {
+                "Authorization": f"Bearer {self.api_key.strip()}",
                 "Content-Type": "application/json"
             }
-            st.write(f"[DEBUG] Headers: {headers}")
             
             data = {
                 "model": self.config.OPENAI_MODEL,
@@ -72,10 +70,8 @@ SQL Query:
                     {"role": "user", "content": prompt}
                 ],
                 "max_tokens": self.config.MAX_TOKENS,
-                "temperature": self.config.TEMPERATURE,
-                "api_key": self.api_key.strip()
+                "temperature": self.config.TEMPERATURE
             }
-            st.write(f"[DEBUG] Data includes api_key: {bool(data.get('api_key'))}")
             
             response = requests.post(
                 "https://api.openai.com/v1/chat/completions",
@@ -83,8 +79,6 @@ SQL Query:
                 json=data,
                 timeout=30
             )
-            st.write(f"[DEBUG] Response status: {response.status_code}")
-            st.write(f"[DEBUG] Response body: {response.text}")
             response.raise_for_status()
             
             result = response.json()
@@ -127,7 +121,7 @@ Provide a clear, concise explanation of what this query does.
 """
             
             headers = {
-                "Authorization": f"Bearer {self.api_key}",
+                "Authorization": f"Bearer {self.api_key.strip()}",
                 "Content-Type": "application/json"
             }
             
