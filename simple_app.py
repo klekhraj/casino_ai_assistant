@@ -459,7 +459,7 @@ def main():
             unsafe_allow_html=True,
         )
         user_query = st.text_area(
-            label="",
+            label="Enter your question",
             placeholder="e.g., Get DAU for last 7 days or Show revenue by payer type",
             height=120,
             key="user_query_input",
@@ -486,7 +486,7 @@ def main():
         )
 
         st.selectbox(
-            label="",
+            label="Select an example",
             options=[""] + example_queries,
             key="example_query",
             on_change=_set_query_from_example,
@@ -497,7 +497,7 @@ def main():
         st.markdown('<div class="right-panel-heading">🔧 Options</div>', unsafe_allow_html=True)
 
         show_prompt = st.checkbox("📋 Show generated prompt", value=False)
-        copy_to_clipboard = st.checkbox("📋 Enable copy to clipboard", value=True)
+        copy_to_clipboard = st.checkbox("📋 Enable copy to clipboard", value=True, label="Enable copy to clipboard")
 
         st.markdown("---")
 
@@ -508,14 +508,15 @@ def main():
         custom_prompt = ""
         if use_custom_prompt:
             custom_prompt = st.text_area(
-                "Custom Prompt:",
+                label="Custom Prompt",
+                key="custom_prompt_text",
                 height=200,
-                placeholder="Enter your custom prompt here. Use {user_query} as placeholder for the user's natural language query.",
+                placeholder="Enter your custom prompt here. Use {user_query} where you want the user's question to be inserted.",
                 help="Create a custom prompt for SQL generation. Use {user_query} where you want the user's question to be inserted."
             )
     
     # Generate query button
-    if st.button("Run query & show results", type="primary", use_container_width=True):
+    if st.button("Run query & show results", type="primary", use_container_width=True, label="Run query & show results"):
         if not user_query.strip():
             st.warning("Please enter a query!")
             return
@@ -591,7 +592,8 @@ def main():
                     label="📥 Download SQL Query",
                     data=sql_query,
                     file_name=f"query_{datetime.now().strftime('%Y%m%d_%H%M%S')}.sql",
-                    mime="text/plain"
+                    mime="text/plain",
+                    key="download_sql"
                 )
                 
                 st.success("✅ SQL query generated and executed successfully!")
