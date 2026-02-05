@@ -1,5 +1,17 @@
-import requests
-import json
+import subprocess
+import sys
+
+# Runtime check for requests
+try:
+    import requests
+    import json
+except ImportError:
+    try:
+        subprocess.check_call([sys.executable, "-m", "pip", "install", "requests"])
+        import requests
+        import json
+    except Exception as e:
+        raise ImportError(f"Failed to install requests: {e}")
 from typing import Optional, Dict, Any, List
 import streamlit as st
 from config import Config
