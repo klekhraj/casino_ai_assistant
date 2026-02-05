@@ -516,7 +516,7 @@ def main():
             )
     
     # Generate query button
-    if st.button("Run query & show results", type="primary", use_container_width=True, label="Run query & show results"):
+    if st.button("Run query & show results", type="primary", use_container_width=True):
         if not user_query.strip():
             st.warning("Please enter a query!")
             return
