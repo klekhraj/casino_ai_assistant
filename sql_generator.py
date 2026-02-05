@@ -10,6 +10,11 @@ class SQLGenerator:
     def __init__(self):
         self.config = Config()
         self.api_key = self.config.API_KEY
+        st.write(f"[DEBUG] API_KEY loaded: {bool(self.api_key)}")
+        if self.api_key:
+            st.write(f"[DEBUG] API_KEY starts with: {self.api_key[:7]}...")
+        else:
+            st.write("[DEBUG] API_KEY is None or empty")
         
     def generate_sql_prompt(self, user_query: str, schema_info: Dict[str, Any]) -> str:
         """Generate the prompt for OpenAI to convert natural language to SQL"""
