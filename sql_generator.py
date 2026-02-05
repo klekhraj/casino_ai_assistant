@@ -1,5 +1,14 @@
-import requests
-import json
+import subprocess
+import sys
+
+# Ensure requests is installed
+try:
+    import requests
+    import json
+except ImportError:
+    subprocess.check_call([sys.executable, "-m", "pip", "install", "requests"])
+    import requests
+    import json
 from typing import Optional, Dict, Any, List
 import streamlit as st
 from config import Config
