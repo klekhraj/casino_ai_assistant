@@ -1,17 +1,6 @@
-import subprocess
-import sys
-
-# Runtime check for requests
-try:
-    import requests
-    import json
-except ImportError:
-    try:
-        subprocess.check_call([sys.executable, "-m", "pip", "install", "requests"])
-        import requests
-        import json
-    except Exception as e:
-        raise ImportError(f"Failed to install requests: {e}")
+import urllib.request
+import urllib.parse
+import json
 from typing import Optional, Dict, Any, List
 import streamlit as st
 from config import Config
@@ -62,7 +51,7 @@ SQL Query:
         return prompt
     
     def generate_sql(self, user_query: str, schema_info: Dict[str, Any]) -> Optional[str]:
-        """Generate SQL query from natural language using OpenAI via HTTP"""
+        """Generate SQL query from natural language using OpenAI via urllib"""
         try:
             if not self.api_key:
                 st.error("OpenAI API key not configured. Please set OPENAI_API_KEY in your environment.")
@@ -85,16 +74,15 @@ SQL Query:
                 "temperature": self.config.TEMPERATURE
             }
             
-            response = requests.post(
+            req = urllib.request.Request(
                 "https://api.openai.com/v1/chat/completions",
-                headers=headers,
-                json=data,
-                timeout=30
+                data=json.dumps(data).encode(),
+                headers=headers
             )
-            response.raise_for_status()
             
-            result = response.json()
-            sql_query = result["choices"][0]["message"]["content"].strip()
+            with urllib.request.urlopen(req) as response:
+                result = json.loads(response.read().decode())
+                sql_query = result["choices"][0]["message"]["content"].strip()
             
             # Clean up the response (remove any markdown formatting)
             sql_query = sql_query.replace("```sql", "").replace("```", "").strip()
@@ -118,7 +106,7 @@ SQL Query:
         return True
     
     def explain_sql(self, sql_query: str) -> Optional[str]:
-        """Generate explanation for the SQL query using OpenAI via HTTP"""
+        """Generate explanation for the SQL query using OpenAI via urllib"""
         try:
             if not self.api_key:
                 st.error("OpenAI API key not configured. Please set OPENAI_API_KEY in your environment.")
@@ -147,16 +135,15 @@ Provide a clear, concise explanation of what this query does.
                 "temperature": 0.3
             }
             
-            response = requests.post(
+            req = urllib.request.Request(
                 "https://api.openai.com/v1/chat/completions",
-                headers=headers,
-                json=data,
-                timeout=30
+                data=json.dumps(data).encode(),
+                headers=headers
             )
-            response.raise_for_status()
             
-            result = response.json()
-            return result["choices"][0]["message"]["content"].strip()
+            with urllib.request.urlopen(req) as response:
+                result = json.loads(response.read().decode())
+                return result["choices"][0]["message"]["content"].strip()
             
         except Exception as e:
             st.error(f"SQL explanation failed: {str(e)}")
