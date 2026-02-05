@@ -497,7 +497,7 @@ def main():
         st.markdown('<div class="right-panel-heading">🔧 Options</div>', unsafe_allow_html=True)
 
         show_prompt = st.checkbox("📋 Show generated prompt", value=False)
-        copy_to_clipboard = st.checkbox("📋 Enable copy to clipboard", value=True, label="Enable copy to clipboard")
+        copy_to_clipboard = st.checkbox("📋 Enable copy to clipboard", value=True)
 
         st.markdown("---")
 
