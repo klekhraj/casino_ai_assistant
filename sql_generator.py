@@ -1,8 +1,3 @@
-import subprocess
-import sys
-
-# Force install requests to ensure it's available
-subprocess.check_call([sys.executable, "-m", "pip", "install", "--upgrade", "requests"])
 import requests
 import json
 from typing import Optional, Dict, Any, List
