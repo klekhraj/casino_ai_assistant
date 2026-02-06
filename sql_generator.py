@@ -85,8 +85,14 @@ SQL Query:
                 headers=headers
             )
             
+            st.write(f"[DEBUG] Request URL: {req.full_url}")
+            st.write(f"[DEBUG] Request headers: {req.headers}")
+            st.write(f"[DEBUG] Request data: {json.dumps(data, indent=2)}")
+            
             with urllib.request.urlopen(req) as response:
                 result = json.loads(response.read().decode())
+                st.write(f"[DEBUG] Response status: {response.status}")
+                st.write(f"[DEBUG] Response body: {json.dumps(result, indent=2)}")
                 sql_query = result["choices"][0]["message"]["content"].strip()
             
             # Clean up the response (remove any markdown formatting)

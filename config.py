@@ -27,7 +27,7 @@ class Config:
         return share_url
     
     # OpenAI Configuration
-    OPENAI_MODEL = "gpt-3.5-turbo"
+    OPENAI_MODEL = "llama3-8b-8192"
     MAX_TOKENS = 1000
     TEMPERATURE = 0.1
     

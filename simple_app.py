@@ -486,7 +486,7 @@ def main():
         )
 
         st.selectbox(
-            label="Select an example",
+            "Select an example",
             options=[""] + example_queries,
             key="example_query",
             on_change=_set_query_from_example,

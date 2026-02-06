@@ -1,2 +1,4 @@
 __pycache__
 .envanalytics.db
+analytics.db
+.env
