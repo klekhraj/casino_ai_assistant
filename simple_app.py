@@ -13,6 +13,10 @@ from database import DatabaseManager
 # Load environment variables
 load_dotenv()
 
+# Authentication configuration
+LOGIN_USERNAME = os.getenv("LOGIN_USERNAME", "analytics_user")
+LOGIN_PASSWORD = os.getenv("LOGIN_PASSWORD", "casinoanalytics777")
+
 # Page configuration
 st.set_page_config(
     page_title="Casino Analytics AI Assistant",
@@ -136,6 +140,59 @@ st.markdown(
         box-shadow: 0 0 0 1px rgba(56, 189, 248, 0.7) !important;
     }
 
+    /* Make login text inputs inside the glass card clearly look editable */
+    /* Target both username (text) and password fields */
+    .gsn-card [data-testid="stTextInput"] div[data-baseweb="base-input"],
+    .gsn-card [data-testid="stTextInput"] div[data-baseweb="input"],
+    .gsn-card [data-testid="stTextInput"] div[data-baseweb="input"] > div {
+        background-color: rgba(15, 23, 42, 0.98) !important;
+        border-radius: 8px !important;
+    }
+    .gsn-card input[type="text"],
+    .gsn-card input[type="password"] {
+        background-color: rgba(15, 23, 42, 0.98) !important;
+        border-radius: 8px !important;
+        border: 1px solid rgba(148, 163, 184, 0.9) !important;
+        color: #e5e7eb !important;
+        box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.9);
+        color-scheme: dark;
+        transition: background-color 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+    }
+    .gsn-card input[type="text"]::placeholder,
+    .gsn-card input[type="password"]::placeholder {
+        color: rgba(148, 163, 184, 0.8) !important;
+    }
+    .gsn-card input[type="text"]:focus,
+    .gsn-card input[type="password"]:focus {
+        border-color: #38bdf8 !important;
+        box-shadow: 0 0 0 1px rgba(56, 189, 248, 0.8) !important;
+        outline: none !important;
+    }
+
+    /* Override browser autofill (e.g., Chrome) so saved credentials use dark theme */
+    .gsn-card input:-webkit-autofill,
+    .gsn-card input:-webkit-autofill:hover,
+    .gsn-card input:-webkit-autofill:focus,
+    .gsn-card input:autofill,
+    .gsn-card input:-internal-autofill-selected,
+    .gsn-card input:-internal-autofill-previewed {
+        -webkit-text-fill-color: #e5e7eb !important;
+        background-color: rgba(15, 23, 42, 0.98) !important;
+        -webkit-box-shadow: 0 0 0px 1000px rgba(15, 23, 42, 0.98) inset !important;
+        box-shadow: 0 0 0px 1000px rgba(15, 23, 42, 0.98) inset !important;
+        caret-color: #e5e7eb !important;
+        border-radius: 8px !important;
+        border: 1px solid rgba(148, 163, 184, 0.9) !important;
+        transition: background-color 600000s 0s, color 600000s 0s;
+    }
+
+    /* Autofill sometimes paints the BaseWeb container instead of the input */
+    .gsn-card [data-testid="stTextInput"] div[data-baseweb="base-input"]:has(input:-webkit-autofill),
+    .gsn-card [data-testid="stTextInput"] div[data-baseweb="input"]:has(input:-webkit-autofill) {
+        background-color: rgba(15, 23, 42, 0.98) !important;
+        box-shadow: 0 0 0px 1000px rgba(15, 23, 42, 0.98) inset !important;
+    }
+
     /* Tables */
     .stDataFrame, .stTable {
         background-color: rgba(15, 23, 42, 0.98) !important;
@@ -193,6 +250,67 @@ COLUMN_DEFINITIONS = {
     "engagement_7d": "Days active in the last 7 days (7 = regular user).",
     "total_revenue": "Aggregated revenue metric (e.g., SUM(bookings) over the selected period).",
 }
+
+
+def login() -> bool:
+    """Simple username/password login gate using environment-configured creds."""
+    if st.session_state.get("authenticated"):
+        return True
+
+    # Add some top spacing to match main layout
+    st.markdown("<div style='margin-top: 1.5rem'></div>", unsafe_allow_html=True)
+
+    # Centered logo + title row
+    logo_col, title_col, _ = st.columns([1, 3, 1])
+
+    with logo_col:
+        st.image("assets/gsn_logo.png", width=140)
+
+    with title_col:
+        st.markdown("<div style='margin-top: 0.25rem'></div>", unsafe_allow_html=True)
+        st.markdown(
+            "<h2 style='margin-bottom: 0.15rem;'>🔐 Casino Analytics AI Assistant Login</h2>",
+            unsafe_allow_html=True,
+        )
+        st.markdown(
+            "<p style='color: #cbd5f5; font-size: 0.95rem;'>Sign in to generate SQL and insights for your GSN Casino data.</p>",
+            unsafe_allow_html=True,
+        )
+
+    st.markdown("<div style='margin-top: 0.75rem'></div>", unsafe_allow_html=True)
+
+    # Centered glass card for the login form
+    left_pad, card_col, right_pad = st.columns([1, 2, 1])
+
+    with card_col:
+        with st.container():
+            st.markdown("<div class='gsn-card'>", unsafe_allow_html=True)
+
+            # Add autocomplete hints so browser password managers can recognize fields
+            username = st.text_input(
+                "Username",
+                key="login_username",
+                autocomplete="username",
+            )
+            password = st.text_input(
+                "Password",
+                type="password",
+                key="login_password",
+                autocomplete="current-password",
+            )
+
+            sign_in_clicked = st.button("Sign in", type="primary", use_container_width=True)
+
+            st.markdown("</div>", unsafe_allow_html=True)
+
+    if sign_in_clicked:
+        if username == LOGIN_USERNAME and password == LOGIN_PASSWORD:
+            st.session_state["authenticated"] = True
+            st.rerun()
+        else:
+            st.error("Invalid username or password")
+
+    return False
 
 def generate_sql_query(user_query: str, custom_prompt: str = None) -> str:
     """Generate SQL query from natural language using OpenAI.
@@ -460,6 +578,10 @@ def _set_query_from_example():
 
 
 def main():
+    # Require authentication before showing the main UI
+    if not login():
+        return
+
     # Header (restore small spacer so logo is not flush with the top)
     st.markdown("<div style='margin-top: 0.4rem'></div>", unsafe_allow_html=True)
     header_logo_col, header_text_col = st.columns([1, 3])
