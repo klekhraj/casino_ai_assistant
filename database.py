@@ -27,12 +27,18 @@ class DatabaseManager:
                 direct_url = Config.get_direct_drive_url(self.config.DB_DOWNLOAD_URL)
                 response = requests.get(direct_url, stream=True, timeout=60)
                 response.raise_for_status()
+
                 total = int(response.headers.get("content-length", 0))
-                with open(db_path, "wb") as f, st.progress(0) as bar:
+                progress_bar = st.progress(0) if total > 0 else None
+
+                downloaded = 0
+                with open(db_path, "wb") as f:
                     for data in response.iter_content(chunk_size=8192):
                         size = f.write(data)
-                        if total > 0:
-                            bar.progress(min(f.tell() / total, 1.0))
+                        downloaded += size
+                        if total > 0 and progress_bar is not None:
+                            progress_bar.progress(min(downloaded / total, 1.0))
+
             st.success("analytics.db downloaded successfully.")
         except Exception as e:
             st.error(f"Failed to download analytics.db: {e}")

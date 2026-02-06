@@ -1,9 +1,10 @@
 import streamlit as st
-from openai import OpenAI
 from datetime import datetime
 import os
 import json
 import ast
+import urllib.request
+import urllib.parse
 import pandas as pd
 import plotly.express as px
 from dotenv import load_dotenv
@@ -200,14 +201,12 @@ def generate_sql_query(user_query: str, custom_prompt: str = None) -> str:
     and is never exposed in the UI.
     """
     try:
-        # Initialize OpenAI client from environment variable only
+        # Read API key from environment
         api_key = os.getenv("OPENAI_API_KEY")
         if not api_key:
             st.error("OpenAI API key not configured. Please set OPENAI_API_KEY in your environment.")
             return None
 
-        client = OpenAI(api_key=api_key)
-        
         # Use custom prompt or GSN Casino specific prompt
         if custom_prompt:
             prompt = custom_prompt.replace("{user_query}", user_query)
@@ -255,17 +254,34 @@ User Request: {user_query}
 SQL Query:
 """
         
-        response = client.chat.completions.create(
-            model="gpt-3.5-turbo",
-            messages=[
-                {"role": "system", "content": "You are a GSN Casino BigQuery SQL expert. Generate only optimized BigQuery SQL queries for GSN Casino data without any explanations or markdown formatting."},
-                {"role": "user", "content": prompt}
+        # Prepare HTTP request to OpenAI Chat Completions API
+        headers = {
+            "Authorization": f"Bearer {api_key.strip()}",
+            "Content-Type": "application/json",
+        }
+
+        data = {
+            "model": "gpt-3.5-turbo",
+            "messages": [
+                {
+                    "role": "system",
+                    "content": "You are a GSN Casino BigQuery SQL expert. Generate only optimized BigQuery SQL queries for GSN Casino data without any explanations or markdown formatting.",
+                },
+                {"role": "user", "content": prompt},
             ],
-            max_tokens=1000,
-            temperature=0.1
+            "max_tokens": 1000,
+            "temperature": 0.1,
+        }
+
+        req = urllib.request.Request(
+            "https://api.openai.com/v1/chat/completions",
+            data=json.dumps(data).encode(),
+            headers=headers,
         )
-        
-        sql_query = response.choices[0].message.content.strip()
+
+        with urllib.request.urlopen(req) as response:
+            result = json.loads(response.read().decode())
+            sql_query = result["choices"][0]["message"]["content"].strip()
         
         # Clean up the response (remove any markdown formatting)
         sql_query = sql_query.replace("```sql", "").replace("```", "").strip()
@@ -296,8 +312,6 @@ def generate_result_insights(df, user_query: str):
         api_key = os.getenv("OPENAI_API_KEY")
         if not api_key:
             return "OpenAI API key not configured. Cannot generate insights."
-
-        client = OpenAI(api_key=api_key)
 
         sample_csv = df.head(50).to_csv(index=False)
         prompt = f"""
@@ -368,16 +382,34 @@ Sample rows from the query results in CSV format:
 {sample_csv}
 """
 
-        response = client.chat.completions.create(
-            model="gpt-3.5-turbo",
-            messages=[
-                {"role": "system", "content": "You are a senior data analyst that returns ONLY valid JSON following the requested schema. The entire response must fit comfortably within 600 tokens."},
+        # Prepare HTTP request to OpenAI Chat Completions API
+        headers = {
+            "Authorization": f"Bearer {api_key.strip()}",
+            "Content-Type": "application/json",
+        }
+
+        data = {
+            "model": "gpt-3.5-turbo",
+            "messages": [
+                {
+                    "role": "system",
+                    "content": "You are a senior data analyst that returns ONLY valid JSON following the requested schema. The entire response must fit comfortably within 600 tokens.",
+                },
                 {"role": "user", "content": prompt},
             ],
-            max_tokens=600,
-            temperature=0.3,
+            "max_tokens": 600,
+            "temperature": 0.3,
+        }
+
+        req = urllib.request.Request(
+            "https://api.openai.com/v1/chat/completions",
+            data=json.dumps(data).encode(),
+            headers=headers,
         )
-        raw = response.choices[0].message.content.strip()
+
+        with urllib.request.urlopen(req) as response:
+            result = json.loads(response.read().decode())
+            raw = result["choices"][0]["message"]["content"].strip()
 
         # Try to extract a clean JSON object even if the model wrapped it
         # in markdown fences or extra explanation text.
